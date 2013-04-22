@@ -124,7 +124,8 @@
 ####
 # Import Libraries
 #
-from numpy import *
+import numpy as np
+from numpy import flipud, fliplr, exp, imag, real
 from time import *
 
 def idl_ifft(dat, axis = None): #citation
@@ -136,21 +137,21 @@ def idl_ifft(dat, axis = None): #citation
     """
     
     if dat.ndim == 1:
-        dat = fft.ifft(dat)
+        dat  = np.fft.ifft(dat)
         temp = dat[1:len(dat)].copy()
         dat[1:len(dat)] = temp[::-1]    # reverse array
     elif dat.ndim == 2:
         shape = dat.shape
         if axis == 0:
-            dat = fft.ifft(dat, axis=axis)
+            dat  = np.fft.ifft(dat, axis=axis)
             temp = flipud(dat[1:shape[0],:]).copy() # flip x-axis
             dat[1:shape[0],:] = temp
         elif axis == 0:
-            dat = fft.ifft(dat, axis=axis)
+            dat  = np.fft.ifft(dat, axis=axis)
             temp = fliplr(dat[:,1:shape[1]]).copy() # flip y-axis
             dat[:,1:shape[1]] = temp
         else:
-            dat = fft.ifftn(dat, axes=axis)
+            dat  = np.fft.ifftn(dat, axes=axis)
             temp = flipud(dat[1:shape[0],:]).copy() # flip x-axis
             dat[1:shape[0],:] = temp
             temp = fliplr(dat[:,1:shape[1]]).copy() # flip y-axis
@@ -167,21 +168,21 @@ def idl_fft(dat, axis = None):  #citation
     """
     
     if dat.ndim == 1:
-        dat = fft.fft(dat)
+        dat = np.fft.fft(dat)
         temp = dat[1:len(dat)].copy()
         dat[1:len(dat)] = temp[::-1]    # reverse array
     elif dat.ndim == 2:
         shape = dat.shape
         if axis == 0:
-            dat = fft.fft(dat, axis=axis)
+            dat = np.fft.fft(dat, axis=axis)
             temp = flipud(dat[1:shape[0],:]).copy() # flip x-axis
             dat[1:shape[0],:] = temp
         elif axis == 0:
-            dat = fft.fft(dat, axis=axis)
+            dat = np.fft.fft(dat, axis=axis)
             temp = fliplr(dat[:,1:shape[1]]).copy() # flip y-axis
             dat[:,1:shape[1]] = temp
         else:
-            dat = fft.fftn(dat, axes=axis)
+            dat = np.fft.fftn(dat, axes=axis)
             temp = flipud(dat[1:shape[0],:]).copy() # flip x-axis
             dat[1:shape[0],:] = temp
             temp = fliplr(dat[:,1:shape[1]]).copy() # flip y-axis
@@ -189,7 +190,10 @@ def idl_fft(dat, axis = None):  #citation
     
     return dat
 
-def idl_hanning(nx, ny):
+def hanning(nx, ny):
+  """
+  Calculates the Hanning Window of size (nx,ny)
+  """ 
   if ny <= 0:
     print "Array dimensions must be >= 0"
     return
@@ -203,12 +207,19 @@ def idl_hanning(nx, ny):
   else:
     return row_window  
 
-def rayleighsommerfeld(a, z, lamb = 0.632, mpp = 0.135, nozphase = '',hanning = ''): 
+def rayleighsommerfeld(a, z, lamb = 0.632, mpp = 0.135, nozphase = '', hanning_win = ''): 
+  """
+  Computes Rayleigh-Sommerfeld back-propagation of a normalized 
+  hologram of the type measured by digital video microscopy.
+  Example: 
+  >>> E   = rayleighsommerfeld(image,z)
+  >>> int = abs(E)**2
+  """
 
-  a = array(a)
+  a = np.array(a)
   if type(z) == int:
     z = [z]
-  z = array(z)
+  z = np.array(z)
   
   # hologram dimensions
   ndim = a.ndim
@@ -227,18 +238,18 @@ def rayleighsommerfeld(a, z, lamb = 0.632, mpp = 0.135, nozphase = '',hanning = 
   else:
     nz = len(z)                
   ci = complex(0., 1.)
-  k = 2.*pi*mpp/lamb           # wavenumber in radians/pixels
+  k = 2.*np.pi*mpp/lamb           # wavenumber in radians/pixels
   #ikz = ci*k*z
 
   # phase factor for Rayleigh-Sommerfeld propagator in Fourier space
   # Refs. [2] and [3]
-  qx = arange(nx)/nx - 0.5
+  qx = np.arange(nx)/nx - 0.5
   qx = ((lamb/mpp) * qx)**2
 
   if ndim == 2 :
-    qy = arange(ny)/ny - 0.5
+    qy = np.arange(ny)/ny - 0.5
     qy = ((lamb/mpp)*qy)**2
-    qsq = zeros([ny,nx],dtype = complex)
+    qsq = np.zeros([ny,nx],dtype = complex)
     for i in range(0,int(nx)):
       qsq[:,i] += qx[i]
     for j in range(0,int(ny)):
@@ -246,31 +257,31 @@ def rayleighsommerfeld(a, z, lamb = 0.632, mpp = 0.135, nozphase = '',hanning = 
   else:
     qsq = qx
 
-  qfactor = k * sqrt(1. - qsq)
+  qfactor = k * np.sqrt(1. - qsq)
 
   if nozphase != 'nozphase':
     qfactor -= k
 
-  if hanning  == 'hanning':
-    qfactor *= idl_hanning(ny, nx)
+  if hanning_win  != '':
+    qfactor *= Hanning(ny, nx)
 
   ikappa = ci * real(qfactor)
   gamma = imag(qfactor) 
   
-  a = array(a,dtype=complex)
+  a = np.array(a,dtype=complex)
   E = idl_ifft(a-1.) # Fourier transform of input field
-  E = fft.fftshift(E)
-  res = zeros([ny, nx, nz],dtype = complex)
-  for j in range(0, nz):
+  E = np.fft.fftshift(E)
+  res = np.zeros([ny, nx, nz],dtype = complex)
+  for j in xrange(0, nz):
   #  Rayleigh-Sommerfeld propagator
   #   if z[j] > 0 : #$
   #      Hqz = exp(-ikz[j] * conj(qfactor)) #$
   #   else #$
   #      Hqz = exp(-ikz[j] * qfactor)
      Hqz = (exp((ikappa * z[j] - gamma * abs(z[j]))))
-     thisE = E * Hqz                            # convolve with propagator
-     thisE = fft.ifftshift(thisE)           # Shift Center
+     thisE = E * Hqz                        # convolve with propagator
+     thisE = np.fft.ifftshift(thisE)        # Shift Center
      thisE = idl_fft(thisE)                 # transform back to real space
-     res[:,:,j] = thisE                          # save result
+     res[:,:,j] = thisE                     # save result
 
   return res
