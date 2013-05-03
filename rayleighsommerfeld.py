@@ -211,6 +211,20 @@ def rayleighsommerfeld(a, z, lamb = 0.632, mpp = 0.135, nozphase = '', hanning_w
   """
   Computes Rayleigh-Sommerfeld back-propagation of a normalized 
   hologram of the type measured by digital video microscopy.
+
+  INPUTS:
+  a: hologram recorded as image data normalized
+     by a background image. 
+  z: displacement from the focal plane [pixels]
+     If z is an array of displacements, the field
+     is computed at each plane.
+
+  KEYWORDS:
+     lamb: Wavelength of light in medium [micrometers]
+         Default: 0.632 -- HeNe in air
+     mpp: Micrometers per pixel
+         Default: 0.135
+  
   Example: 
   >>> E   = rayleighsommerfeld(image,z)
   >>> int = abs(E)**2
