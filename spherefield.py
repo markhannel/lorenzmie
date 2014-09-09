@@ -140,7 +140,7 @@
 
 ### Import Libraries
 #
-import numpy as nmp
+from numpy import *
 from sphericalfield import *
 from sphere_coefficients import *
 

@@ -251,19 +251,13 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
         Ec += Es
 
         Ec[:,0] =  Es[:,0] * sintheta * cosphi
- #       print "Line 1: ", Ec[:,0]
         Ec[:,0] += Es[:,1] * costheta * cosphi
- #       print "Line 2: ", Ec[:,0]
         Ec[:,0] -= Es[:,2] * sinphi
- #       print "Line 3: ", Ec[:,0]
- #       print Es[:,0]
 
         Ec[:,1] =  Es[:,0] * sintheta * sinphi
- #       print "Line 1: ", Ec[:,1]
         Ec[:,1] += Es[:,1] * costheta * sinphi
- #       print "Line 1: ", Ec[:,1]
         Ec[:,1] += Es[:,2] * cosphi
- #       print "Line 1: ", Ec[:,1]
+
 
         Ec[:,2] =  Es[:,0] * costheta - Es[:,1] * sintheta
 

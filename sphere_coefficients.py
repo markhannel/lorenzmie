@@ -78,7 +78,7 @@
 # Import libraries
 #
 
-from numpy import floor, roll, array, zeros, exp, pi, sin
+from numpy import floor, roll, array, zeros, exp, pi, sin, ndarray
 
 #####
 #
@@ -130,16 +130,15 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
     Example:
     ab = sphere_coefficients([1.0, 1.5], [1.45, 1.56], 1.3326, 0.6328)
     """
-    
-    if type(ap) == float:
+    if type(ap) != ndarray:
         ap = [ap,ap]
-    if type(np) == float:
         np = [np,np]
-    nlayers = len(ap)
     ap = array(ap)
     np = array(np)
 
-    if len(np) != nlayers:
+    nlayers = ap.ndim
+
+    if np.ndim != nlayers:
         print "Error Warning: ap and np must have the same number of elements"
 
     # arrange shells in size order
