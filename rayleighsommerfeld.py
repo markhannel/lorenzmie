@@ -95,4 +95,4 @@ def rayleighsommerfeld(a, z, lamb = 0.447, mpp = 0.135, nozphase = False,
         thisE = np.fft.fft2(thisE)             # transform back to real space
         res[:,:,j] = thisE                     # save result
         
-    return res + 1.
+    return res + 1. # undo the previous reduction by 1.
