@@ -1,4 +1,4 @@
-Python-Enabled-HVM-Routines
+HVM Routines
 ================================
 
 <b>Python routines for analyzing in-line holographic video microscopy (HVM) images </b>
