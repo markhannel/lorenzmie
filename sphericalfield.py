@@ -87,37 +87,6 @@
 # 10/13/2008: DGG eliminated RECURSIVE keyword.
 # 06/18/2010: DGG Added COMPILE_OPT.
 # 09/04/2011: DGG Compute -\tau_n rather than \tau_n
-#
-# Copyright (c) 2007-2011, Bo Sun and David G. Grier
-#
-# UPDATES:
-#    The most recent version of this program may be obtained from
-#    http://physics.nyu.edu/grierlab/software.html
-# 
-# LICENSE:
-#    This program is free software; you can redistribute it and/or
-#    modify it under the terms of the GNU General Public License as
-#    published by the Free Software Foundation; either version 2 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#    General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program; if not, write to the Free Software
-#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-#    02111-1307 USA
-#
-#    If the Internet and WWW are still functional when you are using
-#    this, you should be able to access the GPL here: 
-#    http://www.gnu.org/copyleft/gpl.html
-#-
-
-###
-#Import libraries
-#
 
 import numpy as nmp
 
@@ -141,16 +110,16 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
     >>> field = sphericalfield(x, y, z, a, lambda, mpp = mpp)
     """
 
-    # project to cartesian coordinates
+    # (FIXME MDH): Dangerous check.
     if type(x_) != nmp.ndarray: x_ = nmp.array(x_)
     if type(y_) != nmp.ndarray: y_ = nmp.array(y_)
     if type(z_) != nmp.ndarray: z_ = nmp.array(z_)
     if type(ab) != nmp.ndarray: ab = nmp.array(ab)
 
     npts = len(x_)
-    nc = len(ab[:,0])-1      # number of terms required for convergence
+    nc = len(ab[:,0])-1     # number of terms required for convergence
 
-    k = 2.0 * nmp.pi / lamb         # wavenumber in medium [pixel^-1]
+    k = 2.0 * nmp.pi / lamb # wavenumber in medium [pixel^-1]
 
     ci = complex(0,1.0)
 
@@ -179,8 +148,8 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
     # ... Riccati-Bessel radial functions, page 478
     sinkr = nmp.sin(kr)
     coskr = nmp.cos(kr)
-    xi_nm2 = coskr+ci*sinkr # \xi_{-1}(kr)
-    xi_nm1 = sinkr-ci*coskr # \xi_0(kr)
+    xi_nm2 = coskr+ci*sinkr # \xi_{-1}(kr) # (FIXME MDH): + to - for z<0
+    xi_nm1 = sinkr-ci*coskr # \xi_0(kr)    # (FIXME MDH): - to + for z<0
 
     # ... angular functions (4.47), page 95
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
@@ -192,23 +161,22 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
 
     # storage for scattered field
     Es = nmp.zeros([npts,3],complex)
-    Ec = nmp.zeros([npts,3],complex)
         
     # Compute field by summing multipole contributions
     for n in xrange(1, nc+1):
 
-    # upward recurrences ...
-    # ... Legendre factor (4.47)
-    # Method described by Wiscombe (1980)
+        # upward recurrences ...
+        # ... Legendre factor (4.47)
+        # Method described by Wiscombe (1980)
         swisc = pi_n * costheta 
         twisc = swisc - pi_nm1
         tau_n = pi_nm1 - n * twisc  # -\tau_n(\cos\theta)
 
-    # ... Riccati-Bessel function, page 478
+        # ... Riccati-Bessel function, page 478
         xi_n = (2.0*n - 1.0) * xi_nm1 / kr - xi_nm2    # \xi_n(kr)
 
-    # vector spherical harmonics (4.50)
-    #   Mo1n[:,0] = 0               # no radial component
+        # vector spherical harmonics (4.50)
+        #Mo1n[:,0] = 0               # no radial component
         Mo1n[:,1] = pi_n * xi_n     # ... divided by cosphi/kr
         Mo1n[:,2] = tau_n * xi_n    # ... divided by sinphi/kr
 
@@ -217,30 +185,29 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
         Ne1n[:,1] = tau_n * dn      # ... divided by cosphi/kr
         Ne1n[:,2] = pi_n  * dn      # ... divided by sinphi/kr
 
-    # prefactor, page 93
+        # prefactor, page 93
         En = ci**n * (2.0*n + 1.0) / n / (n + 1.0)
 
-    # the scattered field in spherical coordinates (4.45)
+        # the scattered field in spherical coordinates (4.45)
         Es += En * (ci * ab[n,0] * Ne1n - ab[n,1] * Mo1n)
  
-    # upward recurrences ...
-    # ... angular functions (4.47)
-    # Method described by Wiscombe (1980)
+        # upward recurrences ...
+        # ... angular functions (4.47)
+        # Method described by Wiscombe (1980)
         pi_nm1 = pi_n
         pi_n = swisc + (n + 1.0) * twisc / n
 
-    # ... Riccati-Bessel function
+        # ... Riccati-Bessel function
         xi_nm2 = xi_nm1
         xi_nm1 = xi_n
 
     # geometric factors were divided out of the vector
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
-#    print cosphi, sintheta
- #   print kr
     Es[:,0] *= cosphi * sintheta / kr**2
     Es[:,1] *= cosphi / kr
     Es[:,2] *= sinphi / kr
+
 
 
     # By default, the scattered wave is returned in spherical
@@ -248,6 +215,7 @@ def sphericalfield(x_, y_, z_, ab, lamb,cartesian = ''):
     # Assumes that the incident wave propagates along z and 
     # is linearly polarized along x
     if cartesian == 'cartesian':
+        Ec = nmp.zeros([npts,3],complex)
         Ec += Es
 
         Ec[:,0] =  Es[:,0] * sintheta * cosphi
