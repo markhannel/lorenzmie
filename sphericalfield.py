@@ -19,7 +19,6 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
         z: If field is required in a single plane, then
             z is the plane's distance from the sphere's center
             [pixels].
-            Otherwise, z is an [npts] array of coordinates.
         a: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
     Keywords:
@@ -30,9 +29,13 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     """
 
     # Check that inputs are numpy arrays
-    for var, char_var in zip([x,y,z,ab], ['x', 'y', 'z', 'ab']):
+    for var, char_var in zip([x,y,z,ab], ['x', 'y', 'ab']):
         if check_if_numpy(var, char_var):
             return None
+
+    if type(z) != int and type(z) != float:
+        print 'z must be a float or int'
+        return None
 
     # Check the inputs are the right size
     
