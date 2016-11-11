@@ -37,32 +37,31 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
     x -= nx/2. + float(rp[0])
     y -= ny/2. + float(rp[1])
 
+    print x,y
+
     zp = float(rp[2])
 
     if lut == True:
-        rho = sqrt(x**2 + y**2)
-        x = arange(fix(rho).max()+1)
+        rho = nmp.sqrt(x**2 + y**2)
+        x = nmp.arange(fix(rho).max()+1)
         y = 0. * x
         
     field = spherefield(x, y, zp, ap, np, nm = nm, 
                         cartesian = True, mpp = mpp, 
-                        lamb = lamb, precision = precision, 
-                        gpu = gpu)
-
-    if len(alpha) == 1 : 
+                        lamb = lamb, precision = precision)
+    print field[0:10]
+    if alpha: 
         field *= alpha
 
-    # scattered intensity
-    dhm = sum(real(field * conj(field)), 1)
+    k = 2.0*nmp.pi/(lamb/nmp.real(nm)/mpp)
+    
+    # Compute the sum of the incident and scattered fields, then square.
+    field *= nmp.complex(0.,-k*zp)
+    field[0,:] += 1.0
 
-    # interference between scattered wave and incident plane wave
-    k = 2.0*pi/(lamb/real(nm)/mpp)
-    dhm += 2.0 * real(field[:, 0] * exp(complex(0, -k*zp)))
-
-    # intensity of plane wave
-    dhm += 1.0
+    image = nmp.sum(nmp.real(field*nmp.conjugate(field)), axis = 1)
 
     if lut == True: 
-        dhm = interpolate(dhm, rho, cubic=-0.5)
+        image = nmp.interpolate(image, rho, cubic=-0.5)
 
-    return dhm.reshape(ny,nx)
+    return image.reshape(ny,nx)

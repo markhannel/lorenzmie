@@ -2,11 +2,11 @@ import numpy as nmp
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
-    if type(x) != nmp.array:
+    if type(x) != nmp.ndarray:
         print char_x + ' must be an numpy array'
-        return True
-    else:
         return False
+    else:
+        return True
 
 def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     """
@@ -29,8 +29,9 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     """
 
     # Check that inputs are numpy arrays
-    for var, char_var in zip([x,y,z,ab], ['x', 'y', 'ab']):
-        if check_if_numpy(var, char_var):
+    for var, char_var in zip([x,y,ab], ['x', 'y', 'ab']):
+        if check_if_numpy(var, char_var) == False:
+            print 'x, y and ab must be numpy arrays'
             return None
 
     if type(z) != int and type(z) != float:
@@ -76,9 +77,11 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     # ... Riccati-Bessel radial functions, page 478
     sinkr = nmp.sin(kr)
     coskr = nmp.cos(kr)
-    xi_nm2 = coskr + nmp.sign(z)*ci*sinkr # \xi_{-1}(kr) 
-    xi_nm1 = sinkr - nmp.sign(z)*ci*coskr # \xi_0(kr)    
 
+    #xi_nm2 = coskr + nmp.sign(z)*ci*sinkr # \xi_{-1}(kr) 
+    #xi_nm1 = sinkr - nmp.sign(z)*ci*coskr # \xi_0(kr)    
+    xi_nm2 = coskr + ci*sinkr
+    xi_nm1 = sinkr - ci*coskr
     # ... angular functions (4.47), page 95
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
     pi_n   = 1.0                    # \pi_1(\cos\theta)
