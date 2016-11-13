@@ -8,7 +8,7 @@ def check_if_numpy(x, char_x):
     else:
         return True
 
-def sphericalfield(x, y, z, ab, lamb, cartesian = True):
+def sphericalfield(x, y, z, ab, lamb, cartesian = False):
     """
     Calculate the complex electric field defined by an array of scattering
     coefficients.
@@ -38,6 +38,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
         print 'z must be a float or int'
         return None
 
+    z = nmp.array(z)
     # Check the inputs are the right size
     
     if x.shape != y.shape:
@@ -78,10 +79,10 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     sinkr = nmp.sin(kr)
     coskr = nmp.cos(kr)
 
-    #xi_nm2 = coskr + nmp.sign(z)*ci*sinkr # \xi_{-1}(kr) 
-    #xi_nm1 = sinkr - nmp.sign(z)*ci*coskr # \xi_0(kr)    
-    xi_nm2 = coskr + ci*sinkr
-    xi_nm1 = sinkr - ci*coskr
+    xi_nm2 = coskr + nmp.sign(z)*ci*sinkr # \xi_{-1}(kr) 
+    xi_nm1 = sinkr - nmp.sign(z)*ci*coskr # \xi_0(kr)    
+    #xi_nm2 = coskr + ci*sinkr
+    #xi_nm1 = sinkr - ci*coskr
     # ... angular functions (4.47), page 95
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
     pi_n   = 1.0                    # \pi_1(\cos\theta)
@@ -145,7 +146,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = True):
     # coordinates.  Project components onto Cartesian coordinates.
     # Assumes that the incident wave propagates along z and 
     # is linearly polarized along x
-    if cartesian == 'cartesian':
+    if cartesian == True:
         Ec = nmp.zeros([npts,3],complex)
         Ec += Es
 
