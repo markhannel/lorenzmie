@@ -1,5 +1,5 @@
 import numpy as nmp
-from spherefield import *
+from spherefield import spherefield
 
 def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False, 
               precision = False,  lut = False):
@@ -30,26 +30,37 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
     Returns:
         dhm: [nx, ny] holographic image                
     """
-
+    '''
     nx, ny = map(float, dim)
     x = nmp.tile(nmp.arange(nx), ny)
     y = nmp.repeat(nmp.arange(ny), nx)
     x -= nx/2. + float(rp[0])
     y -= ny/2. + float(rp[1])
 
-    print x,y
+    zp = float(rp[2])
+    '''
+
+    nx = float(dim[0])
+    ny = float(dim[1])
+    npts = nx * ny
+    x = nmp.arange(npts) % nx
+    y = nmp.floor(nmp.arange(npts) / nx)
+    x -= nx/2. + float(rp[0])
+    y -= ny/2. + float(rp[1])
 
     zp = float(rp[2])
 
     if lut == True:
         rho = nmp.sqrt(x**2 + y**2)
-        x = nmp.arange(fix(rho).max()+1)
+        x = nmp.arange(nmp.fix(rho).max()+1)
         y = 0. * x
-        
+    
+    print x,y
+
     field = spherefield(x, y, zp, ap, np, nm = nm, 
                         cartesian = True, mpp = mpp, 
                         lamb = lamb, precision = precision)
-    print field[0:10]
+    print field[0:10,0]
     if alpha: 
         field *= alpha
 
