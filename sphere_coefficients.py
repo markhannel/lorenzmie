@@ -1,96 +1,12 @@
-#
-# NAME:
-#    sphere_coefficients
-#
-# PURPOSE:
-#    Calculates the Mie scattering coefficients
-#    for a multilayered sphere illuminated
-#    by a coherent plane wave linearly polarized in the x direction.
-#
-# CATEGORY:
-#    Holography, light scattering, microscopy
-#
-# CALLING SEQUENCE:
-#    ab = sphere_coefficients(ap, np, nm, lambda)
-#
-# INPUTS:
-#    ap: [nlayers] radii of layered sphere [micrometers]
-#        NOTE: ap and np are reordered automatically so that
-#        ap is in ascending order.
-#
-#    np: [nlayers] (complex) refractive indexes of sphere's layers
-#
-#    nm: (complex) refractive index of medium
-#
-#    lambda: wavelength of light [micrometers]
-#
-# OUTPUTS:
-#    ab: [2,nc] complex a and b scattering coefficients.
-#
-# KEYWORDS:
-#    resolution: minimum magnitude of Lorenz-Mie coefficients to retain.
-#         Default: See references.
-#
-# REFERENCES:
-# 1. Adapted from Chapter 8 in
-#    C. F. Bohren and D. R. Huffman, 
-#    Absorption and Scattering of Light by Small Particles,
-#    (New York, Wiley, 1983).
-#
-# 2. W. Yang, 
-#    Improved recursive algorithm for 
-#    light scattering by a multilayered sphere,
-#    Applied Optics 42, 1710--1720 (2003).
-#
-# 3. O. Pena, U. Pal,
-#    Scattering of electromagnetic radiation by a multilayered sphere,
-#    Computer Physics Communications 180, 2348--2354 (2009).
-#    NB: Equation numbering follows this reference.
-#
-# 4. W. J. Wiscombe,
-#    Improved Mie scattering algorithms,
-#    Applied Optics 19, 1505-1509 (1980).
-#
-# EXAMPLE: 
-#  ab = sphere_coefficients([1.0, 1.5], [1.45, 1.56], 1.3326, 0.6328)
-#   
-# MODIFICATION HISTORY:
-# Replaces sphere_coefficients.pro, which calculated scattering
-#    coefficients for a homogeneous sphere.  This earlier version
-#    was written by Bo Sun and David G. Grier, and was based on
-#    algorithms by W. J. Wiscombe (1980) and W. J. Lentz (1976).
-#
-# 10/31/2010 Written by F. C. Cheong, New York University
-# 11/02/2010 David G. Grier (NYU) Formatting.  Explicit casts 
-#    to double precision.  Use complex functions.
-# 04/10/2011 DGG Cleaned up Nstop code.  Use array math rather than
-#    iteration where convenient.  Eliminate an and bn subroutines.
-#    Simplify function names.  Use IDL 8 array notation.  Fixed
-#    bug in bn coefficients for multilayer spheres.
-# 05/31/2011 DGG Fixed corner condition in Nstop code.
-# 09/04/2011 DGG Added RESOLUTION keyword
-#
-# Copyright (c) 2010-2011, F. C. Cheong and D. G. Grier
-# 
-
-#####
-#
-# Import libraries
-#
-
 from numpy import floor, roll, array, zeros, exp, pi, sin, ndarray
-
-#####
-#
-# Nstop
-#
 
 def Nstop(x,m): 
     """
-    Returns the number of terms to keep in partial wave expansion
+    Return the number of terms to keep in partial wave expansion
     according to Wiscombe (1980) and Yang (2003)
     """
-### Wiscombe (1980)
+
+    ### Wiscombe (1980)
     xl = x[-1]
     if xl < 8.:
         ns = floor(xl + 4. * xl**(1./3.) + 1.)
@@ -99,37 +15,32 @@ def Nstop(x,m):
     elif xl > 4199.:
         ns = floor(xl + 4. * xl**(1./3.) + 2.)
 
-### Yang (2003) Eq. (30)
+    ### Yang (2003) Eq. (30)
     ns = [ns]
     ns.extend(map(abs,x*m))
     ns.extend(map(abs,roll(x,-1)*m))
     return int(floor(max(ns))+15)
 
-#####
-#
-# sphere_coefficients
-#
-
 def sphere_coefficients(ap,np,nm,lamb,resolution=0):
     """
-    Calculates the Mie scattering coefficients for a multilayered sphere 
+    Calculate the Mie scattering coefficients for a multilayered sphere 
     illuminated by a coherent plane wave linearly polarized in the x direction.
     
-    Inputs:
-    ap: [nlayers] radii of layered sphere [micrometers]
-         NOTE: ap and np are reordered automatically so that
-         ap is in ascending order.
-    np: [nlayers] (complex) refractive indexes of sphere's layers
-    nm: (complex) refractive index of medium
-    lambda: wavelength of light [micrometers]
+    Args:
+        ap: [nlayers] radii of layered sphere [micrometers]
+            NOTE: ap and np are reordered automatically so that
+            ap is in ascending order.
+        np: [nlayers] (complex) refractive indexes of sphere's layers
+        nm: (complex) refractive index of medium
+        lamb: wavelength of light [micrometers]
 
-    Parameters:
-    resolution: minimum magnitude of Lorenz-Mie coefficients to retain.
-          Default: See references
-
-    Example:
-    ab = sphere_coefficients([1.0, 1.5], [1.45, 1.56], 1.3326, 0.6328)
+    Keywrods:
+        resolution: minimum magnitude of Lorenz-Mie coefficients to retain.
+              Default: See references
+    Returns:
+        ab: the coefficients a,b
     """
+
     if type(ap) != ndarray:
         ap = [ap,ap]
         np = [np,np]
