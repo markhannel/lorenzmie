@@ -1,4 +1,4 @@
-from numpy import floor, roll, array, zeros, exp, pi, sin, ndarray
+import numpy as nmp
 
 def Nstop(x,m): 
     """
@@ -9,17 +9,17 @@ def Nstop(x,m):
     ### Wiscombe (1980)
     xl = x[-1]
     if xl < 8.:
-        ns = floor(xl + 4. * xl**(1./3.) + 1.)
+        ns = nmp.floor(xl + 4. * xl**(1./3.) + 1.)
     elif xl < 4200.:
-        ns = floor(xl + 4.05 * xl**(1./3.) + 2.)
+        ns = nmp.floor(xl + 4.05 * xl**(1./3.) + 2.)
     elif xl > 4199.:
-        ns = floor(xl + 4. * xl**(1./3.) + 2.)
+        ns = nmp.floor(xl + 4. * xl**(1./3.) + 2.)
 
     ### Yang (2003) Eq. (30)
     ns = [ns]
     ns.extend(map(abs,x*m))
-    ns.extend(map(abs,roll(x,-1)*m))
-    return int(floor(max(ns))+15)
+    ns.extend(map(abs,nmp.roll(x,-1)*m))
+    return int(nmp.floor(max(ns))+15)
 
 def sphere_coefficients(ap,np,nm,lamb,resolution=0):
     """
@@ -41,11 +41,11 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
         ab: the coefficients a,b
     """
 
-    if type(ap) != ndarray:
+    if type(ap) != nmp.ndarray:
         ap = [ap,ap]
         np = [np,np]
-    ap = array(ap)
-    np = array(np)
+    ap = nmp.array(ap)
+    np = nmp.array(np)
 
     nlayers = ap.ndim
 
@@ -58,31 +58,31 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
         ap = ap[order]
         np = np[order]
 
-    x = map(abs,(2.0 * pi * nm * ap / lamb)) # size parameter [array]
+    x = map(abs,(2.0 * nmp.pi * nm * ap / lamb)) # size parameter [array]
     m = np/nm                                # relative refractive index [array]
     nmax = Nstop(x, m)            # number of terms in partial-wave expansion
     ci = complex(0,1.)            # imaginary unit
 
 
     # arrays for storing results
-    ab = zeros([nmax+1, 2],complex)  ##Note:  May be faster not to use zeros
-    D1     = zeros(nmax+2,complex)
-    D1_a   = zeros([nmax+2, nlayers],complex)
-    D1_am1 = zeros([nmax+2, nlayers],complex)
+    ab = nmp.zeros([nmax+1, 2],complex)  ##Note:  May be faster not to use zeros
+    D1     = nmp.zeros(nmax+2,complex)
+    D1_a   = nmp.zeros([nmax+2, nlayers],complex)
+    D1_am1 = nmp.zeros([nmax+2, nlayers],complex)
 
-    D3     = zeros(nmax+1,complex)
-    D3_a   = zeros([nmax+1, nlayers],complex)
-    D3_am1 = zeros([nmax+1, nlayers],complex)
+    D3     = nmp.zeros(nmax+1,complex)
+    D3_a   = nmp.zeros([nmax+1, nlayers],complex)
+    D3_am1 = nmp.zeros([nmax+1, nlayers],complex)
 
-    Psi         = zeros(nmax+1,complex) 
-    Zeta        = zeros(nmax+1,complex) 
-    PsiZeta     = zeros(nmax+1,complex) 
-    PsiZeta_a   = zeros([nmax+1, nlayers],complex) 
-    PsiZeta_am1 = zeros([nmax+1, nlayers],complex) 
+    Psi         = nmp.zeros(nmax+1,complex) 
+    Zeta        = nmp.zeros(nmax+1,complex) 
+    PsiZeta     = nmp.zeros(nmax+1,complex) 
+    PsiZeta_a   = nmp.zeros([nmax+1, nlayers],complex) 
+    PsiZeta_am1 = nmp.zeros([nmax+1, nlayers],complex) 
 
-    Q  = zeros([nmax+1, nlayers],complex) 
-    Ha = zeros([nmax+1, nlayers],complex) 
-    Hb = zeros([nmax+1, nlayers],complex) 
+    Q  = nmp.zeros([nmax+1, nlayers],complex) 
+    Ha = nmp.zeros([nmax+1, nlayers],complex) 
+    Hb = nmp.zeros([nmax+1, nlayers],complex) 
 
     # Calculate D1, D3 and PsiZeta for Z1 in the first layer
     z1 = x[0] * m[0]
@@ -91,7 +91,7 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
     for n in xrange(nmax+1, 0, -1):     # downward recurrence Eq. (16b)
         D1_a[n-1,0] = n/z1 - 1.0/(D1_a[n,0] + n/z1)
 
-    PsiZeta_a[0, 0] = 0.5 * (1. - exp(2. * ci * z1)) # Eq. (18a)
+    PsiZeta_a[0, 0] = 0.5 * (1. - nmp.exp(2. * ci * z1)) # Eq. (18a)
     D3_a[0, 0] = ci                                  # Eq. (18a)
     for n in xrange(1, nmax+1):          #upward recurrence Eq. (18b)
         PsiZeta_a[n,0] = PsiZeta_a[n-1,0] * (n/z1 - D1_a[n-1,0]) * (n/z1 - D3_a[n-1,0])
@@ -113,8 +113,8 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
             D1_am1[n-1, ii] = n/z2 - 1./(D1_am1[n, ii] + n/z2)
             
        # Upward recurrence for PsiZeta and D3, Eqs. (18a) and (18b)
-        PsiZeta_a[0, ii]   = 0.5 * (1. - exp(2. * ci * z1)) # Eq. (18a)
-        PsiZeta_am1[0, ii] = 0.5 * (1. - exp(2. * ci * z2))
+        PsiZeta_a[0, ii]   = 0.5 * (1. - nmp.exp(2. * ci * z1)) # Eq. (18a)
+        PsiZeta_am1[0, ii] = 0.5 * (1. - nmp.exp(2. * ci * z2))
         D3_a[0, ii]   = ci           
         D3_am1[0, ii] = ci           
         for n in xrange(1, nmax+1):    # Eq. (18b)
@@ -125,7 +125,7 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
 
 
    # Upward recurrence for Q
-        Q[0,ii] = (exp(-2. * ci * z2) - 1.) / (exp(-2. * ci * z1) - 1.)
+        Q[0,ii] = (nmp.exp(-2. * ci * z2) - 1.) / (nmp.exp(-2. * ci * z1) - 1.)
         for n in xrange(1, nmax+1):
             Num = (z1 * D1_a[n, ii]   + n) * (n - z1 * D3_a[n-1, ii])
             Den = (z2 * D1_am1[n, ii] + n) * (n - z2 * D3_am1[n-1, ii])
@@ -156,9 +156,9 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
         D1[n-1] = n/z1 - (1./(D1[n] + n/z1))
 
 # Upward recurrence for Psi, Zeta, PsiZeta and D3, Eqs. (18a) and (18b)
-    Psi[0]     =  sin(z1)                 # Eq. (18a)
-    Zeta[0]    = -ci * exp(ci * z1)
-    PsiZeta[0] =  0.5 * (1. - exp(2. * ci * z1))
+    Psi[0]     =  nmp.sin(z1)                 # Eq. (18a)
+    Zeta[0]    = -ci * nmp.exp(ci * z1)
+    PsiZeta[0] =  0.5 * (1. - nmp.exp(2. * ci * z1))
     D3[0]      = ci
     for n in xrange(1, nmax+1):           # Eq. (18b)
         Psi[n]  = Psi[n-1]  * (n/z1 - D1[n-1])
@@ -168,10 +168,10 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
 
 # Scattering coefficients, Eqs. (5) and (6)
     n = map(float,range(nmax + 1))
-    ab[:, 0]  = (Ha[:, -1]/m[-1] + n/x[-1]) * Psi  - roll(Psi,  1) # Eq. (5)
-    ab[:, 0] /= (Ha[:, -1]/m[-1] + n/x[-1]) * Zeta - roll(Zeta, 1)
-    ab[:, 1]  = (Hb[:, -1]*m[-1] + n/x[-1]) * Psi  - roll(Psi,  1) # Eq. (6)
-    ab[:, 1] /= (Hb[:, -1]*m[-1] + n/x[-1]) * Zeta - roll(Zeta, 1)
+    ab[:, 0]  = (Ha[:, -1]/m[-1] + n/x[-1]) * Psi  - nmp.roll(Psi,  1) # Eq. (5)
+    ab[:, 0] /= (Ha[:, -1]/m[-1] + n/x[-1]) * Zeta - nmp.roll(Zeta, 1)
+    ab[:, 1]  = (Hb[:, -1]*m[-1] + n/x[-1]) * Psi  - nmp.roll(Psi,  1) # Eq. (6)
+    ab[:, 1] /= (Hb[:, -1]*m[-1] + n/x[-1]) * Zeta - nmp.roll(Zeta, 1)
     ab[0, :]  = complex(0.,0.)
     if (resolution > 0):
         w = abs(ab).sum(axis=1)
