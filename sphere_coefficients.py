@@ -167,7 +167,7 @@ def sphere_coefficients(ap,np,nm,lamb,resolution=0):
         D3[n] = D1[n] + ci/PsiZeta[n]
 
 # Scattering coefficients, Eqs. (5) and (6)
-    n = map(float,range(nmax + 1))
+    n = nmp.arange(nmax+1)
     ab[:, 0]  = (Ha[:, -1]/m[-1] + n/x[-1]) * Psi  - nmp.roll(Psi,  1) # Eq. (5)
     ab[:, 0] /= (Ha[:, -1]/m[-1] + n/x[-1]) * Zeta - nmp.roll(Zeta, 1)
     ab[:, 1]  = (Hb[:, -1]*m[-1] + n/x[-1]) * Psi  - nmp.roll(Psi,  1) # Eq. (6)
