@@ -34,7 +34,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
             print 'x, y and ab must be numpy arrays'
             return None
 
-    if type(z) != int and type(z) != float:
+    if type(z) != int and type(z) != float and type(z) != nmp.float64:
         print 'z must be a float or int'
         return None
 
