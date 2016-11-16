@@ -79,6 +79,13 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
     sinkr = nmp.sin(kr)
     coskr = nmp.cos(kr)
 
+    '''
+    Particles above the focal plane create diverging waves described by Eq. (4.13) for
+    $h_n^{(1)}(kr)$. These have z > 0. Those below the focal plane appear to be 
+    converging from the perspective of the camera. They are descrinbed by Eq. (4.14) 
+    for $h_n^{(2)}(kr)$, and have z < 0. We can select the appropriate case by applying
+    the correct sign of the imaginary part of the starting functions...
+    '''
     xi_nm2 = coskr + nmp.sign(z)*ci*sinkr # \xi_{-1}(kr) 
     xi_nm1 = sinkr - nmp.sign(z)*ci*coskr # \xi_0(kr)    
     #xi_nm2 = coskr + ci*sinkr
@@ -86,8 +93,8 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
     # ... angular functions (4.47), page 95
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
     pi_n   = 1.0                    # \pi_1(\cos\theta)
-
-    # storage for vector spherical harmonics: [r,theta,phi]
+ 
+yah   # storage for vector spherical harmonics: [r,theta,phi]
     Mo1n = nmp.zeros([npts,3],complex)
     Ne1n = nmp.zeros([npts,3],complex)
 
