@@ -94,7 +94,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
     pi_n   = 1.0                    # \pi_1(\cos\theta)
  
-yah   # storage for vector spherical harmonics: [r,theta,phi]
+    # storage for vector spherical harmonics: [r,theta,phi]
     Mo1n = nmp.zeros([npts,3],complex)
     Ne1n = nmp.zeros([npts,3],complex)
 
