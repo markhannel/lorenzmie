@@ -7,8 +7,8 @@ def phase_displace(x, y, z, r, k):
     # Compute R
     R = r**2+2*z*(nmp.sqrt(r**2-(x**2+y**2)))+z**2 # R squared.
     R = nmp.sqrt(R)
-    
-    phase = nmp.exp(nmp.complex(0.,i*k*(R-r)))
+    phase = nmp.exp(nmp.complex(0.,1j*k*(R-r)))
+
     return phase
 
 def check_if_numpy(x, char_x):
@@ -97,17 +97,17 @@ def debyewolf(x, y, z, ap, np, nm,
     # Compute auxiliary (Eq. 133) with zero padding!
     aber  = nmp.zeros([npts, 3], complex) # As a function of sx_img, sy_img
     g_aux = nmp.zeros([npts, 3], complex)
-    g_aux[p/2:3*p/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-ci*k_img*aber)
+    g_aux[(nx - p)/2:(nx + p)/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-ci*k_img*aber)
     g_aux = g_aux.reshape(np, nq, 3)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n  = nmp.fft.fft2(g_aux)
 
     # Compute the electric field at the imaging plane
-    es_cam  = (ci*NA**2/(M**2*nm_img*lamb))*(4/npts)*e_m_n
+    es_cam  = (ci*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
     m = np.arange(0,np)
     n = np.arange(0,nq)
-    es_cam *= np.exp(-2*np.pi*ci*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
+    # FIXME es_cam *= np.exp(-2*np.pi*ci*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
 
     # Convert E_img to cartesian coords
     field = nmp.zeros([npts,3],complex)

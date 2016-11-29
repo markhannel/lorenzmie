@@ -1,11 +1,22 @@
-def lm_angular_spectrum(x, y, ab, lamb, n):
+import numpy as nmp
+
+def check_if_numpy(x, char_x):
+    ''' checks if x is a numpy array '''
+    if type(x) != nmp.ndarray:
+        print char_x + ' must be an numpy array'
+        return False
+    else:
+        return True
+
+
+def lm_angular_spectrum(sx, sy, ab, lamb, n):
     """
     Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
 
     Args:
-        x: [npts] array of pixel coordinates [pixels]
-        y: [npts] array of pixel coordinates [pixels]
+        sx: [npts] array of pixel coordinates
+        sy: [npts] array of pixel coordinates
         f: [float] distance to focal plane [pixels]
         ab: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
@@ -19,17 +30,17 @@ def lm_angular_spectrum(x, y, ab, lamb, n):
 
     
     # Check that inputs are numpy arrays
-    for var, char_var in zip([x,y,ab], ['x', 'y', 'ab']):
+    for var, char_var in zip([sx,sy,ab], ['sx', 'sy', 'ab']):
         if check_if_numpy(var, char_var) == False:
-            print 'x, y and ab must be numpy arrays'
+            print 'sx, sy and ab must be numpy arrays'
             return None
 
-    if x.shape != y.shape:
-        print 'x has shape {} while y has shape {}'.format(x.shape, y.shape)
+    if sx.shape != sy.shape:
+        print 'sx has shape {} while sy has shape {}'.format(sx.shape, sy.shape)
         print 'and yet their dimensions must match.'
         return None
 
-    npts = len(x)
+    npts = len(sx)
     nc = len(ab[:,0])-1     # number of terms required for convergence
 
     k = 2.0*nmp.pi*n/ lamb # wavenumber in medium [pixel^-1]
@@ -38,12 +49,9 @@ def lm_angular_spectrum(x, y, ab, lamb, n):
 
     # Compute relevant coordinates systems.
     r = 1.0
-    rho   = nmp.sqrt(x**2 + y**2)
-    z     = nmp.sqrt(r**2-rho**2)
-    theta = nmp.arctan(rho/z)
-    phi   = nmp.arctan(y/x)
-    costheta = nmp.cos(theta)
-    sintheta = nmp.sin(theta)
+    phi   = nmp.arctan(sy/sx)
+    sintheta = nmp.sqrt(sx**2+sy**2)
+    costheta = nmp.sqrt(1. - (sx**2 + sy**2))
     cosphi   = nmp.cos(phi)
     sinphi   = nmp.sin(phi)
     
@@ -117,8 +125,10 @@ def lm_angular_spectrum(x, y, ab, lamb, n):
     # geometric factors were divided out of the vector
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
-    Es[:,0] *= cosphi * sintheta / kr**2
-    Es[:,1] *= cosphi / kr
-    Es[:,2] *= sinphi / kr
+    Es[:,0] *= cosphi * sintheta / (k**2*r)
+    Es[:,1] *= cosphi / k
+    Es[:,2] *= sinphi / k
 
+    Es *= nmp.exp(ci*kr)
+    
     return Es
