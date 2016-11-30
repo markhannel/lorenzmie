@@ -19,19 +19,25 @@ def check_if_numpy(x, char_x):
     else:
         return True
 
-def discretize_plan(NA, M, nm_img):
+def discretize_plan(NA, M, lamb, nm_img, mpp):
     '''
     Discretizes a plane according to Eq. 130 - 131.
     '''
-    nx = ny = 200 # (FIX ME: use criteria Eq 1.42)
+    # Suppose the largest scatterer we consider is 20 lambda. THen
+    # P should be larger than 40*NA.
+    p, q = int(40*NA), int(40*NA)
 
-    x = nmp.tile(nmp.arange(nx, dtype = float), ny)
-    y = nmp.repeat(nmp.arange(ny, dtype = float), nx)
+    # Pad with zeros for increased resolution and to set del_x to mpp.
+    pad_p = int((M*lamb - mpp*2*NA)/(mpp*2*NA)*p)
+    pad_q = int((M*lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
-    sx = NA/(M*nm_img)*( (1 + 2*x)/(nx -1) - 1)
-    sy = NA/(M*nm_img)*( (1 + 2*y)/(ny -1) - 1)
+    x = nmp.tile(nmp.arange(p, dtype = float), q)
+    y = nmp.repeat(nmp.arange(q, dtype = float), p)
 
-    return nx, ny, sx, sy
+    sx_img = NA/(M*nm_img)*( (1+2*x)/(p-1) - 1)
+    sy_img = NA/(M*nm_img)*( (1+2*y)/(q-1) - 1)
+
+    return pad_p, pad_q, p, q, sx_img, sy_img
     
 
 def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img):
@@ -75,8 +81,8 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     k_img = 2*np.pi*nm_img/lamb
 
     # Compute grids sx_obj and sx_img.
-    p, q, sx_img, sy_img = discretize_plane(NA, M, nm_img)
-    np, nq = 2*p, 2*q
+    pad_p, pad_q, p, q, sx_img, sy_img = discretize_plane(NA, M, nm_img)
+
     npts = p*q
     sx_obj = M*nm_img/nm_obj*sx
     sy_obj = M*nm_img/nm_obj*sy
@@ -95,7 +101,7 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     aber  = nmp.zeros([3, npts], complex) # As a function of sx_img, sy_img
     g_aux = nmp.zeros([3, npts], complex)
     g_aux[(nx - p)/2:(nx + p)/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-1.j*k_img*aber)
-    g_aux = g_aux.reshape(3, np, nq)
+    g_aux = g_aux.reshape(3, p+pad_p, q+pad_q)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n  = nmp.fft.fft2(g_aux)
@@ -104,7 +110,7 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     es_cam  = (1.j*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
     m = np.arange(0,np)
     n = np.arange(0,nq)
-    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
+    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*(pad_p+p)*m + (1-q)/(q**2*pad_q+q)*n)))
 
     # Convert E_img to cartesian coords
     field = nmp.zeros([3, npts],complex)
@@ -130,4 +136,9 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     return image.reshape(nx,ny)
 
 if __name__ == '__main__':
-    
+    NA = 1.45
+    M = 100
+    lamb = 0.447
+    nm_img = 1.0
+    mpp = 0.3
+    print discretize_plan(NA, M, lamb, nm_img, mpp)
