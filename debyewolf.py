@@ -47,11 +47,8 @@ def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img):
     return es
     
 
-def convertCartesian(e_sph, 
-
-def debyewolf(x, y, z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201],
-              NA = 1.45, nm_obj = 1.5, nm_img = 1.0, 
-              M = 100, f = 20.*10**5):
+def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
+              nm_obj = 1.5, nm_img = 1.0, M = 100, f = 20.*10**5):
     '''
     Returns the electric fields in the imaging plane due to a spherical
     scatterer at (x,y,z) with radius ap and refractice index np.
@@ -75,7 +72,6 @@ def debyewolf(x, y, z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201],
     '''
 
     # Necessary constants.
-    ci = complex(0., 1.)
     k_img = 2*np.pi*nm_img/lamb
 
     # Compute grids sx_obj and sx_img.
@@ -96,33 +92,33 @@ def debyewolf(x, y, z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201],
     es_img = consv_energy(es_obj)
 
     # Compute auxiliary (Eq. 133) with zero padding!
-    aber  = nmp.zeros([npts, 3], complex) # As a function of sx_img, sy_img
-    g_aux = nmp.zeros([npts, 3], complex)
-    g_aux[(nx - p)/2:(nx + p)/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-ci*k_img*aber)
-    g_aux = g_aux.reshape(np, nq, 3)
+    aber  = nmp.zeros([3, npts], complex) # As a function of sx_img, sy_img
+    g_aux = nmp.zeros([3, npts], complex)
+    g_aux[(nx - p)/2:(nx + p)/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-1.j*k_img*aber)
+    g_aux = g_aux.reshape(3, np, nq)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n  = nmp.fft.fft2(g_aux)
 
     # Compute the electric field at the imaging plane
-    es_cam  = (ci*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
+    es_cam  = (1.j*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
     m = np.arange(0,np)
     n = np.arange(0,nq)
-    es_cam *= np.exp(-2*np.pi*ci*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
+    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
 
     # Convert E_img to cartesian coords
-    field = nmp.zeros([npts,3],complex)
+    field = nmp.zeros([3, npts],complex)
     field += E_img
     
-    field[:,0] =  E_img[:,0] * sintheta * cosphi
-    field[:,0] += E_img[:,1] * costheta * cosphi
-    field[:,0] -= E_img[:,2] * sinphi
+    field[0, :] =  E_img[0, :] * sintheta * cosphi
+    field[0, :] += E_img[1, :] * costheta * cosphi
+    field[0, :] -= E_img[2, :] * sinphi
     
-    field[:,1] =  E_img[:,0] * sintheta * sinphi
-    field[:,1] += E_img[:,1] * costheta * sinphi
-    field[:,1] += E_img[:,2] * cosphi
+    field[1, :] =  E_img[0, :] * sintheta * sinphi
+    field[1, :] += E_img[1, :] * costheta * sinphi
+    field[1, :] += E_img[2, :] * cosphi
 
-    field[:,2] =  E_img[:,0] * costheta - E_img[:,1] * sintheta
+    field[2, :] =  E_img[0, :] * costheta - E_img[1, :] * sintheta
 
     # Recombine with plane wave.
     path_len = f + f/M
