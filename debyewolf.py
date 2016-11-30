@@ -23,7 +23,7 @@ def discretize_plan(NA, M, nm_img):
     '''
     Discretizes a plane according to Eq. 130 - 131.
     '''
-    nx = ny = 20 # (FIX ME: use criteria Eq 1.42)
+    nx = ny = 200 # (FIX ME: use criteria Eq 1.42)
 
     x = nmp.tile(nmp.arange(nx, dtype = float), ny)
     y = nmp.repeat(nmp.arange(ny, dtype = float), nx)
@@ -34,21 +34,22 @@ def discretize_plan(NA, M, nm_img):
     return nx, ny, sx, sy
     
 
-def consv_energy(es, sx_obj, sx_img):
+def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img):
     '''
     Changes electric field strength factor density to obey the conversation
     of energy.
     '''
     # Compute the necessary cosine terms in Eq 108.
-    cos_theta_img = nmp.sqrt(1. - sx_img**2)
-    cos_theta_obj = nmp.sqrt(1. - sx_obj**2)
+    cos_theta_img = nmp.sqrt(1. - (sx_img**2+sy_img**2))
+    cos_theta_obj = nmp.sqrt(1. - (sx_obj**2+sy_obj**2))
     es *= nmp.sqrt(cos_theta_img/cos_theta_obj)
 
     return es
     
 
-def debyewolf(x, y, z, ap, np, nm, 
-              lamb = 0.447, mpp = 0.135, dim = [201,201],
+def convertCartesian(e_sph, 
+
+def debyewolf(x, y, z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201],
               NA = 1.45, nm_obj = 1.5, nm_img = 1.0, 
               M = 100, f = 20.*10**5):
     '''
@@ -75,7 +76,7 @@ def debyewolf(x, y, z, ap, np, nm,
 
     # Necessary constants.
     ci = complex(0., 1.)
-    k_img = 2*np.pi/lamb/nm_img
+    k_img = 2*np.pi*nm_img/lamb
 
     # Compute grids sx_obj and sx_img.
     p, q, sx_img, sy_img = discretize_plane(NA, M, nm_img)
@@ -107,7 +108,7 @@ def debyewolf(x, y, z, ap, np, nm,
     es_cam  = (ci*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
     m = np.arange(0,np)
     n = np.arange(0,nq)
-    # FIXME es_cam *= np.exp(-2*np.pi*ci*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
+    es_cam *= np.exp(-2*np.pi*ci*( (1-p)/(p**2*np)*m + (1-q)/(q**2*nq)*n)
 
     # Convert E_img to cartesian coords
     field = nmp.zeros([npts,3],complex)
@@ -131,3 +132,6 @@ def debyewolf(x, y, z, ap, np, nm,
     image = nmp.sum(nmp.real(field*conj(field)), axis = 1)
 
     return image.reshape(nx,ny)
+
+if __name__ == '__main__':
+    
