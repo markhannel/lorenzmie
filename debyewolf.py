@@ -27,9 +27,11 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     # P should be larger than 40*NA.
     p, q = int(40*NA), int(40*NA)
 
+
+    print mpp, NA
     # Pad with zeros for increased resolution and to set del_x to mpp.
-    pad_p = int((M*lamb - mpp*2*NA)/(mpp*2*NA)*p)
-    pad_q = int((M*lamb - mpp*2*NA)/(mpp*2*NA)*q)
+    pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
+    pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
     x = nmp.tile(nmp.arange(p, dtype = float), q)
     y = nmp.repeat(nmp.arange(q, dtype = float), p)
@@ -81,7 +83,9 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     k_img = 2*np.pi*nm_img/lamb
 
     # Compute grids sx_obj and sx_img.
-    pad_p, pad_q, p, q, sx_img, sy_img = discretize_plane(NA, M, nm_img)
+    pad_p, pad_q, p, q, sx_img, sy_img = discretize_plan(NA, M, nm_img)
+    Np = pad_p + p
+    Nq = pad_q + q
 
     npts = p*q
     sx_obj = M*nm_img/nm_obj*sx
@@ -89,7 +93,8 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ab = sphere_coefficients(ap,np,lamb,mpp)
-    es_obj = lm_angular_spectrum(sx, sy, ab, lamb, nm_obj, f/M)
+    es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M)
+    es_obj = es_obj.reshape(3,p,q)
 
     # Displace the field.
     #es *= phase_displace(x, y, z, r, k)
@@ -100,45 +105,38 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     # Compute auxiliary (Eq. 133) with zero padding!
     aber  = nmp.zeros([3, npts], complex) # As a function of sx_img, sy_img
     g_aux = nmp.zeros([3, npts], complex)
-    g_aux[(nx - p)/2:(nx + p)/2, q/2:3*q/2] = es_img[:]/np.sqrt(1. - sx_img**2)*np.exp(-1.j*k_img*aber)
-    g_aux = g_aux.reshape(3, p+pad_p, q+pad_q)
+    g_aux[:,pad_p/2:-pad_p/2, pad_q/2:-pad_q/2] = es_img/np.sqrt(1. - sx_img**2)*np.exp(-1.j*k_img*aber)
+    g_aux = g_aux.reshape(3, Np, Nq)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n  = nmp.fft.fft2(g_aux)
 
     # Compute the electric field at the imaging plane
     es_cam  = (1.j*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
-    m = np.arange(0,np)
-    n = np.arange(0,nq)
-    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*(pad_p+p)*m + (1-q)/(q**2*pad_q+q)*n)))
+    m = np.arange(0,Np)
+    n = np.arange(0,Nq)
+    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*Np*m + (1-q)/(q**2*Nq)*n)))
 
     # Convert E_img to cartesian coords
     field = nmp.zeros([3, npts],complex)
-    field += E_img
+    field += es_cam # FIXME!!
     
-    field[0, :] =  E_img[0, :] * sintheta * cosphi
-    field[0, :] += E_img[1, :] * costheta * cosphi
-    field[0, :] -= E_img[2, :] * sinphi
-    
-    field[1, :] =  E_img[0, :] * sintheta * sinphi
-    field[1, :] += E_img[1, :] * costheta * sinphi
-    field[1, :] += E_img[2, :] * cosphi
-
-    field[2, :] =  E_img[0, :] * costheta - E_img[1, :] * sintheta
-
     # Recombine with plane wave.
     path_len = f + f/M
-    field *= nmp.exp(nmp.complex(0.0, -k*path_len))
+    field *= nmp.exp(-1.j*k_img*path_len)
     field[:,0] += 1.0 # Plane wave normalized to amplitude 1.
     
-    image = nmp.sum(nmp.real(field*conj(field)), axis = 1)
+    image = nmp.sum(nmp.real(field*nmp.conj(field)), axis = 1)
 
-    return image.reshape(nx,ny)
+    return image.reshape(dim[0],dim[1])
 
 if __name__ == '__main__':
     NA = 1.45
     M = 100
     lamb = 0.447
     nm_img = 1.0
-    mpp = 0.3
-    print discretize_plan(NA, M, lamb, nm_img, mpp)
+    mpp = 0.135
+    pad_p, pad_q, p, q, sx, sy = discretize_plan(NA, M, lamb, nm_img, mpp)
+    
+    del_x = lamb*p*M/(2*NA*(pad_p+p))
+    print del_x/M
