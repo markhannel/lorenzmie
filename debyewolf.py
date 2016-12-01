@@ -27,8 +27,6 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     # P should be larger than 40*NA.
     p, q = int(40*NA), int(40*NA)
 
-
-    print mpp, NA
     # Pad with zeros for increased resolution and to set del_x to mpp.
     pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
@@ -88,8 +86,8 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     Nq = pad_q + q
 
     npts = p*q
-    sx_obj = M*nm_img/nm_obj*sx
-    sy_obj = M*nm_img/nm_obj*sy
+    sx_obj = M*nm_img/nm_obj*sx_img
+    sy_obj = M*nm_img/nm_obj*sy_img
     
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ab = sphere_coefficients(ap,np,lamb,mpp)
@@ -100,22 +98,26 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     #es *= phase_displace(x, y, z, r, k)
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(es_obj)
+    es_img = consv_energy(es_obj) # (FIXME (MDH): Only the phi and theta comp
 
     # Compute auxiliary (Eq. 133) with zero padding!
-    aber  = nmp.zeros([3, npts], complex) # As a function of sx_img, sy_img
-    g_aux = nmp.zeros([3, npts], complex)
-    g_aux[:,pad_p/2:-pad_p/2, pad_q/2:-pad_q/2] = es_img/np.sqrt(1. - sx_img**2)*np.exp(-1.j*k_img*aber)
+    # (FIXME MDH: Set up a 2d version of sx_img, sy_img with meshgrid)
+    aber  = nmp.zeros([2, Np, Nq], complex) # As a function of sx_img, sy_img
+    g_aux = nmp.zeros([2, Np, Nq], complex)
+    g_aux = es_img[1:,:,:]/np.sqrt(1. - (sx_img**2+sy_img**2))
+    g_aux *= np.exp(-1.j*k_img*aber)
     g_aux = g_aux.reshape(3, Np, Nq)
 
     # Apply discrete Fourier Transform (Eq. 135).
-    es_m_n  = nmp.fft.fft2(g_aux)
+    es_m_n = nmp.fft.fft2(g_aux)
+    es_m_n = nmp.fft.shift(g_aux)
 
-    # Compute the electric field at the imaging plane
+    # Compute the electric field at the image while accounting for aliasing.
     es_cam  = (1.j*NA**2/(M**2*nm_img*lamb))*(4/npts)*es_m_n
-    m = np.arange(0,Np)
-    n = np.arange(0,Nq)
-    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*Np*m + (1-q)/(q**2*Nq)*n)))
+    m = nmp.arange(0,Np)
+    n = nmp.arange(0,Nq)
+    m_n = nmp.meshgrid(m,n) # (FIXME MDH: Shape should be (2,Np,Nq)
+    es_cam *= np.exp(-2*np.pi*1.j*( (1-p)/(p**2*Np*m_n[0,:,:] + (1-q)/(q**2*Nq)*m_n[1,:,:])))
 
     # Convert E_img to cartesian coords
     field = nmp.zeros([3, npts],complex)
