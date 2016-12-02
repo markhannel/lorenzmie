@@ -48,7 +48,7 @@ def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img):
     # Compute the necessary cosine terms in Eq 108.
     cos_theta_img = nmp.sqrt(1. - (sx_img**2+sy_img**2))
     cos_theta_obj = nmp.sqrt(1. - (sx_obj**2+sy_obj**2))
-    es *= nmp.sqrt(cos_theta_img/cos_theta_obj)
+    es[1:,:] *= nmp.sqrt(cos_theta_img/cos_theta_obj)
 
     return es
     
@@ -98,12 +98,12 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     #es *= phase_displace(x, y, z, r, k)
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(es_obj) # (FIXME (MDH): Only the phi and theta comp
+    es_img = consv_energy(es_obj)
 
     # Compute auxiliary (Eq. 133) with zero padding!
     # (FIXME MDH: Set up a 2d version of sx_img, sy_img with meshgrid)
     aber  = nmp.zeros([2, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = nmp.zeros([2, Np, Nq], complex)
+    g_aux = nmp.zeros([2, p,q], complex)
     g_aux = es_img[1:,:,:]/np.sqrt(1. - (sx_img**2+sy_img**2))
     g_aux *= np.exp(-1.j*k_img*aber)
     g_aux = g_aux.reshape(3, Np, Nq)
