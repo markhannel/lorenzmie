@@ -45,11 +45,10 @@ def lm_angular_spectrum(sx, sy, ab, lamb, nm, r):
     k = 2.0*nmp.pi*nm/ lamb # wavenumber in medium [pixel^-1]
 
     # Compute relevant coordinates.
-    phi   = nmp.arctan(sy/sx) # Divide by zero error
     sintheta = nmp.sqrt(sx**2+sy**2)
     costheta = nmp.sqrt(1. - (sx**2 + sy**2))
-    cosphi   = nmp.cos(phi)
-    sinphi   = nmp.sin(phi)
+    cosphi   = sx/sintheta
+    sinphi   = sy/costheta
 
     kr = k*r  # reduced radial coordinate
 
