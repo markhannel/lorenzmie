@@ -34,8 +34,8 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     x = nmp.tile(nmp.arange(p, dtype = float), q)
     y = nmp.repeat(nmp.arange(q, dtype = float), p)
 
-    sx_img = NA/(M*nm_img)*( (1+2*x)/(p-1) - 1)
-    sy_img = NA/(M*nm_img)*( (1+2*y)/(q-1) - 1)
+    sx_img = NA/(M*nm_img)*( (1+2*x)/p - 1)
+    sy_img = NA/(M*nm_img)*( (1+2*y)/q - 1)
 
     return pad_p, pad_q, p, q, sx_img, sy_img
     
@@ -58,8 +58,8 @@ def remove_r(es):
     return es
     
 
-def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-              nm_obj = 1.5, nm_img = 1.0, M = 100, f = 20.*10**5):
+def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
+              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5):
     '''
     Returns the electric fields in the imaging plane due to a spherical
     scatterer at (x,y,z) with radius ap and refractice index np.
@@ -95,6 +95,9 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     sx_obj = M*nm_img/nm_obj*sx_img
     sy_obj = M*nm_img/nm_obj*sy_img
     
+    print max(sx_img**2+sy_img**2)
+    print max(sx_obj**2+sy_obj**2)
+
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ab = sphere_coefficients(ap,np,lamb,mpp)
     es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M)
@@ -126,7 +129,8 @@ def debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.
     #aber  = nmp.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     sxx_img, syy_img = nmp.meshgrid(sx_img, sy_img)
     sintheta = sxx_img**2 + syy_img**2
-    costheta = nmp.sqrt(1 - sintheta**2)
+    costheta = nmp.sqrt(1 - sintheta)
+    sintheta = nmp.sqrt(sintheta)
     
     g_aux = nmp.zeros([3, p, q], complex)
     for i in xrange(3):
@@ -195,10 +199,9 @@ def test_debye():
     z = 0.0
     ap = 0.5
     np = 1.5
-    nm = 1.339
 
-    image = debyewolf(z, ap, np, nm, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-                      nm_obj = 1.5, nm_img = 1.0, M = 100, f = 20.*10**5)
+    image = debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
+                      nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5)
 
     print image[0:10]
     import matplotlib.pyplot as plt
