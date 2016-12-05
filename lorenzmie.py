@@ -48,7 +48,7 @@ def lm_angular_spectrum(sx, sy, ab, lamb, nm, r):
     sintheta = nmp.sqrt(sx**2+sy**2)
     costheta = nmp.sqrt(1. - (sx**2 + sy**2))
     cosphi   = sx/sintheta
-    sinphi   = sy/costheta
+    sinphi   = sy/sintheta
 
     kr = k*r  # reduced radial coordinate
 
