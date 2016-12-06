@@ -15,6 +15,7 @@ Mark Hannel - Physics PhD Student at NYU University
 
 # Coming Soon.
 1.`svr` - Calculating holograms is computationally expensive. Instead, support vector machines can offer a less precise, yet computational cheap method for analyzing holographic images.
+
 2.`debyewolf` - Current implementations of HVM assume the fields produced at the focal plane of an object are the same fields that arrive in the camera plane. `debyewolf` will utilize the Debye-Wolf integral (along with the abbe-sine condition and the conservation of energy) to account for the changes in amplitude, phase and direction imparted on the field present at the camera.
 # Licensing.
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
