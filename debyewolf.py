@@ -41,13 +41,7 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
-    x = nmp.tile(nmp.arange(p, dtype = float), q)
-    y = nmp.repeat(nmp.arange(q, dtype = float), p)
-
-    sx_img = NA/(M*nm_img)*( (1+2*x)/p - 1)
-    sy_img = NA/(M*nm_img)*( (1+2*y)/q - 1)
-
-    return pad_p, pad_q, p, q, sx_img, sy_img
+    return pad_p, pad_q, p, q
     
 
 def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img, r_max):
@@ -98,13 +92,21 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     k_img = 2*nmp.pi*nm_img/lamb
 
     # Compute grids sx_obj and sx_img.
-    pad_p, pad_q, p, q, sx_img, sy_img = discretize_plan(NA, M, lamb, nm_img, mpp)
+    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
     pad_p = 0
     pad_q = 0 
     Np = pad_p + p
     Nq = pad_q + q
 
     npts = p*q
+
+
+    x = nmp.tile(nmp.arange(p, dtype = float), q)
+    y = nmp.repeat(nmp.arange(q, dtype = float), p)
+
+    sx_img = NA/(M*nm_img)*( (1+2*x)/p - 1)
+    sy_img = NA/(M*nm_img)*( (1+2*y)/q - 1)
+
 
     sx_obj = M*nm_img/nm_obj*sx_img
     sy_obj = M*nm_img/nm_obj*sy_img
@@ -117,7 +119,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     temp = es_obj.reshape(3,p,q)
     plt.imshow(nmp.hstack([nmp.abs(temp[0]), nmp.abs(temp[1]), nmp.abs(temp[2])]))
-    plt.title('Electric Field strength (Theta comp) at P_1')
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at P_1')
     plt.show()
 
 
@@ -156,7 +158,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     
 
     plt.imshow(nmp.hstack([nmp.abs(es_img[0]), nmp.abs(es_img[1]), nmp.abs(es_img[2])]))
-    plt.title('Electric Field strength (Theta comp) at P_2')
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at P_2')
     plt.show()
 
 
@@ -169,7 +171,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
         #g_aux *= nmp.exp(-1.j*k_img*aber)
 
     plt.imshow(nmp.hstack([nmp.abs(g_aux[0]), nmp.abs(g_aux[1]), nmp.abs(g_aux[2])]))
-    plt.title('Auxiliary field (Theta comp) at P_2')
+    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at P_2')
     plt.show()
 
 
@@ -179,7 +181,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
         es_m_n[i] = nmp.fft.fftshift(es_m_n[i])
 
     plt.imshow(nmp.hstack([nmp.abs(es_m_n[0]), nmp.abs(es_m_n[1]), nmp.abs(es_m_n[2])]))
-    plt.title('Fourier Transform of aux')
+    plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$')
     plt.show()
 
 
@@ -194,7 +196,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
         es_cam[i,:,:] *= nmp.exp(-1.j*nmp.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     plt.imshow(nmp.hstack([nmp.abs(es_cam[0]), nmp.abs(es_cam[1]), nmp.abs(es_cam[2])]))
-    plt.title('Electric field (theta) at the camera plane after dealiasing')
+    plt.title(r'Electric field $(r, \theta, \phi)$ at the camera plane after dealiasing')
     plt.show()
 
     nx_img = nmp.arange(Np, dtype = float)
@@ -228,7 +230,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     
     plt.imshow(nmp.hstack([nmp.abs(es_cam_cart[0]), nmp.abs(es_cam_cart[1]), nmp.abs(es_cam_cart[2])]))
-    plt.title('Electric field (cart) at the camera plane after dealiasing')
+    plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing')
     plt.show()
 
     # Recombine with plane wave.
@@ -260,7 +262,7 @@ def test_discretize():
 
 def test_debye():    
     z = 0.0
-    ap = 0.5
+    ap = 1.0
     np = 1.5
 
     image = debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
@@ -268,7 +270,7 @@ def test_debye():
 
     import matplotlib.pyplot as plt
     plt.imshow(image)
-    plt.title('Image')
+    plt.title('Final Image')
     plt.gray()
     plt.show()
 
