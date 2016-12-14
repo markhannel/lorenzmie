@@ -2,6 +2,9 @@ import numpy as nmp
 from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
+import matplotlib as mp
+mp.rcParams.update({'font.size':22})
+
 
 def phase_displace(x, y, z, r, k):
     ''' Determines the phase due to displacement. '''
@@ -119,7 +122,9 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     temp = es_obj.reshape(3,p,q)
     plt.imshow(nmp.hstack([nmp.abs(temp[0]), nmp.abs(temp[1]), nmp.abs(temp[2])]))
-    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at P_1')
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_1$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
     plt.show()
 
 
@@ -129,7 +134,10 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
 
     plt.imshow(nmp.hstack([nmp.abs(es_obj[0]), nmp.abs(es_obj[1]), nmp.abs(es_obj[2])]))
-    plt.title('Electric Field strength (Theta comp) at P_1 after aperture')
+    plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ after aperture')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
     plt.show()
 
     sx_img = nmp.arange(p, dtype = float)
@@ -158,7 +166,10 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     
 
     plt.imshow(nmp.hstack([nmp.abs(es_img[0]), nmp.abs(es_img[1]), nmp.abs(es_img[2])]))
-    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at P_2')
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
     plt.show()
 
 
@@ -171,7 +182,10 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
         #g_aux *= nmp.exp(-1.j*k_img*aber)
 
     plt.imshow(nmp.hstack([nmp.abs(g_aux[0]), nmp.abs(g_aux[1]), nmp.abs(g_aux[2])]))
-    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at P_2')
+    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
     plt.show()
 
 
@@ -182,6 +196,9 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     plt.imshow(nmp.hstack([nmp.abs(es_m_n[0]), nmp.abs(es_m_n[1]), nmp.abs(es_m_n[2])]))
     plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
     plt.show()
 
 
@@ -197,6 +214,8 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     plt.imshow(nmp.hstack([nmp.abs(es_cam[0]), nmp.abs(es_cam[1]), nmp.abs(es_cam[2])]))
     plt.title(r'Electric field $(r, \theta, \phi)$ at the camera plane after dealiasing')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
     plt.show()
 
     nx_img = nmp.arange(Np, dtype = float)
@@ -207,7 +226,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
 
     nxx_img, nyy_img = nmp.meshgrid(nx_img, ny_img)
     sintheta = nxx_img**2 + nyy_img**2
-    print 'hmm...'
+
     costheta = nmp.sqrt(1 - sintheta**2)
     sintheta = nmp.sqrt(sintheta)
 
@@ -231,6 +250,9 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     
     plt.imshow(nmp.hstack([nmp.abs(es_cam_cart[0]), nmp.abs(es_cam_cart[1]), nmp.abs(es_cam_cart[2])]))
     plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
     plt.show()
 
     # Recombine with plane wave.
@@ -239,6 +261,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     es_cam_cart[0,:,:] += 1.0*nmp.exp(-1.j*k_img*path_len) # Plane wave normalized to amplitude 1.
     
     image = nmp.sum(nmp.real(es_cam_cart*nmp.conjugate(es_cam_cart)), axis = 0)
+    '''
     real_part = nmp.sum(nmp.real(es_cam_cart), axis = 0)
     imag_part = nmp.sum(nmp.imag(es_cam_cart), axis = 0)
 
@@ -246,7 +269,7 @@ def debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
     plt.imshow(nmp.hstack([real_part,imag_part]))
     plt.title('Es_cam_cart real and imaginary')
     plt.show()
-    
+    '''
     return image
 
 def test_discretize():
@@ -262,7 +285,7 @@ def test_discretize():
 
 def test_debye():    
     z = 0.0
-    ap = 1.0
+    ap = 2.0
     np = 1.5
 
     image = debyewolf(z, ap, np, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
@@ -271,6 +294,8 @@ def test_debye():
     import matplotlib.pyplot as plt
     plt.imshow(image)
     plt.title('Final Image')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
     plt.gray()
     plt.show()
 

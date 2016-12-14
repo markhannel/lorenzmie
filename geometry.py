@@ -33,6 +33,7 @@ class CartesianCoordinates(object):
         self.units = units
         self.units = units
 
+
 class VectorField(object):
     def __init__(self, coordinates, dim):
         self.coords = coordinates
