@@ -39,10 +39,10 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     '''
     # Suppose the largest scatterer we consider is 20 lambda. THen
     # P should be larger than 40*NA.
-    diam = 80 # wavelengths
+    diam = 200 # wavelengths
     p, q = int(diam*NA), int(diam*NA)
 
-    # Pad with zeros for increased resolution and to set del_x to mpp.
+    # Pad with zeros to help dealias and to set del_x to mpp.
     pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
@@ -98,8 +98,8 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp) 
-    pad_p = 0 # FIXME (MDH): padding results in offsetting in phase.
-    pad_q = 0
+    #pad_p = 24 # FIXME (MDH): padding results in offsetting in phase.
+    #pad_q = 24
     Np = pad_p + p
     Nq = pad_q + q
 
@@ -126,7 +126,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # Compute the angular spectrum incident on plane 1.
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ab = sphere_coefficients(a_p, n_p, lamb, mpp)
-    es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M)
+    es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M, z)
     es_obj = np.nan_to_num(es_obj)
 
     # Apply the aperture function.
@@ -145,7 +145,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
 
     # Compute auxiliary (Eq. 133) with zero padding!
     #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = np.zeros([3, Np, Nq], complex)
+    g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
         #g_aux[i, pad_p/2:-pad_p/2, pad_q/2:-pad_q/2] = es_img[i,:,:]/costheta
         g_aux[i, :,:] = es_img[i,:,:]/costheta
@@ -252,7 +252,7 @@ def test_discretize():
     print del_x/M
 
 def test_debye():    
-    z = 0.0
+    z = 10.0
     a_p = 2.0
     n_p = 1.5
 

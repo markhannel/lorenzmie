@@ -9,7 +9,7 @@ def check_if_numpy(x, char_x):
         return True
 
 
-def lm_angular_spectrum(sx, sy, ab, lamb, nm, r):
+def lm_angular_spectrum(sx, sy, ab, lamb, nm, r, z = 0):
     """
     Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
@@ -45,12 +45,15 @@ def lm_angular_spectrum(sx, sy, ab, lamb, nm, r):
     k = 2.0*nmp.pi*nm/ lamb # wavenumber in medium [pixel^-1]
 
     # Compute relevant coordinates.
-    sintheta = nmp.sqrt(sx**2+sy**2)
-    costheta = nmp.sqrt(1. - (sx**2 + sy**2))
+    unit_rho_sq = sx**2+sy**2
+    costheta = nmp.sqrt(1. - unit_rho_sq)
+    costheta /= nmp.sqrt(1 + (2*z/r)*nmp.sqrt(1 - unit_rho_sq))
+    sintheta = nmp.sqrt(1 - costheta**2)
+
     cosphi   = sx/sintheta
     sinphi   = sy/sintheta
 
-    kr = k*r  # reduced radial coordinate
+    kr = k*(r*nmp.sqrt(1 + 2*(z/r)*nmp.sqrt(1.-unit_rho_sq)))  # reduced radial coordinate
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
