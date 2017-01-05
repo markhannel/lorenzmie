@@ -1,5 +1,7 @@
 import numpy as nmp
 from spherefield import spherefield
+# TODO (MDH): Change tile and repeat
+
 
 def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False, 
               precision = False,  lut = False):
@@ -62,15 +64,16 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
 
     return image.reshape(ny,nx)
 
-
-if __name__ == '__main__':
-    rp = [0,0,200]
+def test_spheredhm():
+    mpp = 0.135
+    z = 10.0/mpp
+    
+    rp = [0,0,z]
     ap = 0.5
     np = 1.5
     nm = 1.339
     dim = [201,201]
     lamb = 0.447
-    mpp = 0.135
 
     image = spheredhm(rp, ap, np, nm , dim, lamb = lamb, mpp = mpp)
     
@@ -80,3 +83,7 @@ if __name__ == '__main__':
     plt.imshow(image)
     plt.gray()
     plt.show()
+
+
+if __name__ == '__main__':
+    test_spheredhm()
