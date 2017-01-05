@@ -2,11 +2,8 @@ import numpy as np
 from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
-import matplotlib as mp
 import geometry as g
 from copy import deepcopy
-mp.rcParams.update({'font.size':22})
-
 
 def phase_displace(x, y, z, r, k):
     ''' Determines the phase due to displacement. '''
@@ -251,23 +248,16 @@ def test_discretize():
     del_x = lamb*p*M/(2*NA*(pad_p+p))
     print del_x/M
 
-def test_debye():    
-    z = 10.0
-    a_p = 2.0
+def test_debye():
+    z = 0.
+    a_p = 0.5
     n_p = 1.5
-
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-                      nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = False)
-
+              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True)
     import matplotlib.pyplot as plt
     plt.imshow(image)
-    plt.title('Final Image')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
     plt.gray()
     plt.show()
-
-    
 
 if __name__ == '__main__':
     test_debye()
