@@ -5,15 +5,6 @@ import matplotlib.pyplot as plt
 import geometry as g
 from copy import deepcopy
 
-def phase_displace(x, y, z, r, k):
-    ''' Determines the phase due to displacement. '''
-    # Compute R
-    R = r**2+2*z*(np.sqrt(r**2-(x**2+y**2)))+z**2 # R squared.
-    R = np.sqrt(R)
-    phase = np.exp(np.complex(0.,1j*k*(R-r)))
-
-    return phase
-
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
     if type(x) != np.ndarray:
@@ -94,9 +85,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     k_img = 2*np.pi*nm_img/lamb
 
     # Devise a discretization plan.
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp) 
-    #pad_p = 24 # FIXME (MDH): padding results in offsetting in phase.
-    #pad_q = 24
+    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
     Np = pad_p + p
     Nq = pad_q + q
 
@@ -120,18 +109,17 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     sxx_obj = M*nm_img/nm_obj*sxx_img
     syy_obj = M*nm_img/nm_obj*syy_img
 
+    ''' 1) Scattering.'''
     # Compute the angular spectrum incident on plane 1.
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ab = sphere_coefficients(a_p, n_p, lamb, mpp)
     es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M, z)
     es_obj = np.nan_to_num(es_obj)
 
+    ''' 2) Collection.'''
     # Apply the aperture function.
     es_obj = aperture(es_obj, sx_obj, sy_obj, NA/nm_obj)
     es_obj = es_obj.reshape(3,p,q)
-
-    # Displace the field.
-    #es *= phase_displace(x, y, z, r, k)
 
     # Compute the electric field strength factor on plane 2.
     # Ensure conservation of energy is observed with abbe sine condition.
@@ -144,7 +132,6 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
-        #g_aux[i, pad_p/2:-pad_p/2, pad_q/2:-pad_q/2] = es_img[i,:,:]/costheta
         g_aux[i, :,:] = es_img[i,:,:]/costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
@@ -158,8 +145,8 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
     # FIXME (MDH): Should it be p*q or NpNq
 
-    m = np.arange(0,Np, dtype = float)
-    n = np.arange(0,Nq, dtype = float)
+    m = np.arange(0, Np, dtype = float)
+    n = np.arange(0, Nq, dtype = float)
     mm, nn = np.meshgrid(m,n)
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
@@ -178,6 +165,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
 
     cosphi = nxx_img/sintheta
     sinphi = nyy_img/sintheta
+    
     # Convert es_cam to cartesian coords
     es_cam_cart = g.spherical_to_cartesian(es_cam, sintheta, costheta, sinphi, cosphi)
     temp = deepcopy(es_cam_cart)
