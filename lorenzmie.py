@@ -1,15 +1,15 @@
-import numpy as nmp
+import numpy as np
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
-    if type(x) != nmp.ndarray:
+    if type(x) != np.ndarray:
         print char_x + ' must be an numpy array'
         return False
     else:
         return True
 
 
-def lm_angular_spectrum(geom, ab, lamb, nm, r, z = 0):
+def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
     """
     Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
@@ -46,23 +46,23 @@ def lm_angular_spectrum(geom, ab, lamb, nm, r, z = 0):
     npts = len(sx)
     nc = len(ab[:,0])-1     # number of terms required for convergence
 
-    k = 2.0*nmp.pi*nm/ lamb # wavenumber in medium [pixel^-1]
+    k = 2.0*np.pi*n_m/ lamb # wavenumber in medium [pixel^-1]
 
     # Compute relevant coordinates.
     unit_rho_sq = sx**2+sy**2
-    costheta = nmp.sqrt(1. - unit_rho_sq)
-    costheta /= nmp.sqrt(1 + (2*z/r)*nmp.sqrt(1 - unit_rho_sq))
-    sintheta = nmp.sqrt(1 - costheta**2)
+    costheta = np.sqrt(1. - unit_rho_sq)
+    costheta /= np.sqrt(1 + (2*z/r)*n_mp.sqrt(1 - unit_rho_sq))
+    sintheta = np.sqrt(1 - costheta**2)
 
     cosphi   = sx/sintheta
     sinphi   = sy/sintheta
 
-    kr = k*(r*nmp.sqrt(1 + 2*(z/r)*nmp.sqrt(1.-unit_rho_sq)))  # reduced radial coordinate
+    kr = k*(r*np.sqrt(1 + 2*(z/r)*np.sqrt(1.-unit_rho_sq)))  # reduced radial coordinate
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
-    sinkr = nmp.sin(kr)
-    coskr = nmp.cos(kr)
+    sinkr = np.sin(kr)
+    coskr = np.cos(kr)
 
     # FIXME (MDH): What about particles below the focal plane?
     xi_nm2 = coskr + 1.0j*sinkr # \xi_{-1}(kr) 
@@ -73,11 +73,11 @@ def lm_angular_spectrum(geom, ab, lamb, nm, r, z = 0):
     pi_n   = 1.0                    # \pi_1(\cos\theta)
  
     # storage for vector spherical harmonics: [r,theta,phi]
-    Mo1n = nmp.zeros([3,npts],complex)
-    Ne1n = nmp.zeros([3,npts],complex)
+    Mo1n = np.zeros([3,npts],complex)
+    Ne1n = np.zeros([3,npts],complex)
 
     # storage for scattered field
-    Es = nmp.zeros([3,npts],complex)
+    Es = np.zeros([3,npts],complex)
         
     # Compute field by summing multipole contributions
     for n in xrange(1, nc+1):
@@ -125,6 +125,6 @@ def lm_angular_spectrum(geom, ab, lamb, nm, r, z = 0):
     Es[1,:] *= cosphi / k
     Es[2,:] *= sinphi / k
 
-    Es *= nmp.exp(1.0j*kr)
+    Es *= np.exp(1.0j*kr)
     
     return Es
