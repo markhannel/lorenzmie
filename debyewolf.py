@@ -1,3 +1,5 @@
+## FIXME: Determine if you should use fftshift or ifftshift or a 2d shift.
+
 import numpy as np
 from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
@@ -94,7 +96,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     Np = pad_p + p
     Nq = pad_q + q
 
-    # Compute the three geometries, s_img, s_obj, nx_img
+    # Compute the three geometries, s_img, s_obj, n_img
     # Origins for the coordinate systems.
     origin = [.5*(p-1.), .5*(q-1.)]
     
@@ -104,22 +106,15 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     img_scale = [img_factor*1./p, img_factor*1./q]
     obj_scale = [obj_factor*1./p, obj_factor*1./q]
 
-    # Geometrical objects.
+    # Cartesian Geometries.
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
-    disc_grid  = g.CartesianCoordinates(Np, Nq)
+    n_disc_grid  = g.CartesianCoordinates(Np, Nq)
     n_img_cart = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
 
-    # Spherical coords
-    sxx_img, syy_img = s_img_cart.xx, s_img_cart.yy
+    # Spherical Geometries.
     sph_img = g.SphericalCoordinates(s_img_cart)
     sph_n_img = g.SphericalCoordinates(n_img_cart)
-
-    n_sintheta = sph_n_img.sintheta
-    n_costheta = sph_n_img.costheta
-    n_sinphi   = sph_n_img.sinphi
-    n_cosphi   = sph_n_img.cosphi
-
 
     ''' 1) Scattering.'''
     # Compute the angular spectrum incident on plane 1.
@@ -129,7 +124,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     es_obj = np.nan_to_num(es_obj)
 
     ''' 2) Collection.'''
-    # Apply the aperture function.
+    # Apply the aperture function. (FIXME (MDH): Check isn't necessary)
     #es_obj = aperture(es_obj, s_obj_cart, NA/nm_obj)
     es_obj = es_obj.reshape(3,p,q)
 
@@ -151,22 +146,21 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
     for i in xrange(3):
-        es_m_n[i] = np.fft.fftshift(es_m_n[i])
+        es_m_n[i] = np.fft.ifftshift(es_m_n[i])
 
     # Compute the electric field at plane 3.
     # Accounting for aliasing.
     es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
     # FIXME (MDH): Should it be p*q or NpNq
 
-
-    mm = disc_grid.xx
-    nn = disc_grid.yy
+    mm = n_disc_grid.xx
+    nn = n_disc_grid.yy
 
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     # Convert es_cam to cartesian coords
-    es_cam_cart = g.spherical_to_cartesian(es_cam, n_sintheta, n_costheta, n_sinphi, n_cosphi)
+    es_cam_cart = g.spherical_to_cartesian(es_cam, sph_n_img)
     temp = deepcopy(es_cam_cart)
 
     # Recombine with plane wave.
@@ -236,9 +230,9 @@ def test_discretize():
     print del_x/M
 
 def test_debye():
-    z = 0.
-    a_p = 0.5
-    n_p = 1.5
+    z = 10.
+    a_p = 1.0
+    n_p = 1.4
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
               nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True)
     import matplotlib.pyplot as plt

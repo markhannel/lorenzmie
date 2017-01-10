@@ -67,7 +67,12 @@ class SphericalVectorField(VectorField):
         VectorField.__init__(self, coordinates, dim)
     
 
-def spherical_to_cartesian(es_cam, sintheta, costheta, sinphi, cosphi):
+def spherical_to_cartesian(es_cam, sph_coords):
+    sintheta = sph_coords.sintheta
+    costheta = sph_coords.costheta
+    sinphi = sph_coords.sinphi
+    cosphi = sph_coords.cosphi
+
     es_cam_cart = np.zeros(es_cam.shape, dtype = complex)
     es_cam_cart += es_cam
     
