@@ -9,7 +9,7 @@ def check_if_numpy(x, char_x):
         return True
 
 
-def lm_angular_spectrum(sx, sy, ab, lamb, nm, r, z = 0):
+def lm_angular_spectrum(geom, ab, lamb, nm, r, z = 0):
     """
     Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
@@ -27,7 +27,7 @@ def lm_angular_spectrum(sx, sy, ab, lamb, nm, r, z = 0):
     Returns:
         field: [3,npts] scattered electric field strength factor
     """
-
+    '''
     # Check that inputs are numpy arrays
     for var, char_var in zip([sx,sy,ab], ['sx', 'sy', 'ab']):
         if check_if_numpy(var, char_var) == False:
@@ -38,7 +38,11 @@ def lm_angular_spectrum(sx, sy, ab, lamb, nm, r, z = 0):
         print 'sx has shape {} while sy has shape {}'.format(sx.shape, sy.shape)
         print 'and yet their dimensions must match.'
         return None
+    '''
 
+    sx = geom.xx.ravel()
+    sy = geom.yy.ravel()
+    
     npts = len(sx)
     nc = len(ab[:,0])-1     # number of terms required for convergence
 

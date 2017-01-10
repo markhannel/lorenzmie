@@ -22,10 +22,9 @@ def aperture(field, x, y, r_max):
     return field
 
 def discretize_plan(NA, M, lamb, nm_img, mpp):
-    '''
-    Discretizes a plane according to Eq. 130 - 131.
-    '''
-    # Suppose the largest scatterer we consider is 20 lambda. THen
+    '''Discretizes a plane according to Eq. 130 - 131.'''
+
+    # Suppose the largest scatterer we consider is 20 lambda. Then
     # P should be larger than 40*NA.
     diam = 200 # wavelengths
     p, q = int(diam*NA), int(diam*NA)
@@ -37,13 +36,18 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     return pad_p, pad_q, p, q
     
 
-def consv_energy(es, sx_obj, sy_obj, sx_img, sy_img, r_max):
+def consv_energy(es, s_obj, s_img, r_max):
     '''
     Changes electric field strength factor density to obey the conversation
     of energy.
     '''
+    sx_obj = s_obj.xx
+    sy_obj = s_obj.yy
+    sx_img = s_img.xx
+    sy_img = s_img.yy
     r_2 = sx_obj**2 +sy_obj**2
     indices = np.where(r_2 <= r_max**2)
+
     # Compute the necessary cosine terms in Eq 108.
     cos_theta_img = np.sqrt(1. - (sx_img**2+sy_img**2))
     cos_theta_obj = np.sqrt(1. - (sx_obj**2+sy_obj**2))
@@ -57,6 +61,7 @@ def remove_r(es):
     return es
     
 
+
 def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
               nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True):
     '''
@@ -66,8 +71,8 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     Args:
         x,y:   [pix] define where the image will be evaluated.
         z:     [um] scatterer's distance from the focal plane.
-        a_p:    [um] sets the radius of the spherical scatterer.
-        n_p:    [R.I.U.] sets the refractive index of the scatterer.
+        a_p:   [um] sets the radius of the spherical scatterer.
+        n_p:   [R.I.U.] sets the refractive index of the scatterer.
         nm:    [R.I.U.] sets the refractive index of the medium.
         lamb:  [um] sets the wavelength of the coherent illumination.
                Default: 0.447 um. 
@@ -89,41 +94,48 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     Np = pad_p + p
     Nq = pad_q + q
 
-    # Compute the three geometries, s_img, s_obj, s_obj_padded
-    xy = np.ogrid[0.:p, 0.:q]
-    xy[1] = NA/(M*nm_img)*( (1+2*xy[1])/p - 1)
-    xy[0] = NA/(M*nm_img)*( (1+2*xy[0])/q - 1)
-    s_img_cart = g.CartesianCoordinates(xy, [0,0])
+    # Compute the three geometries, s_img, s_obj, nx_img
+    # Origins for the coordinate systems.
+    origin = [.5*(p-1.), .5*(q-1.)]
+    
+    # Scale factors.
+    img_factor = 2*NA/(M*nm_img)
+    obj_factor = 2*NA/nm_obj
+    img_scale = [img_factor*1./p, img_factor*1./q]
+    obj_scale = [obj_factor*1./p, obj_factor*1./q]
 
-    sx_img = s_img_cart.x
-    sy_img = s_img_cart.y
+    # Geometrical objects.
+    s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
+    s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
+    disc_grid  = g.CartesianCoordinates(Np, Nq)
+    n_img_cart = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
 
-    sx_obj = M*nm_img/nm_obj*sx_img
-    sy_obj = M*nm_img/nm_obj*sy_img
-
+    # Spherical coords
     sxx_img, syy_img = s_img_cart.xx, s_img_cart.yy
-    sintheta = sxx_img**2 + syy_img**2
-    costheta = np.sqrt(1. - sintheta)
-    sintheta = np.sqrt(sintheta)
+    sph_img = g.SphericalCoordinates(s_img_cart)
+    sph_n_img = g.SphericalCoordinates(n_img_cart)
 
-    sxx_obj = M*nm_img/nm_obj*sxx_img
-    syy_obj = M*nm_img/nm_obj*syy_img
+    n_sintheta = sph_n_img.sintheta
+    n_costheta = sph_n_img.costheta
+    n_sinphi   = sph_n_img.sinphi
+    n_cosphi   = sph_n_img.cosphi
+
 
     ''' 1) Scattering.'''
     # Compute the angular spectrum incident on plane 1.
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
-    ab = sphere_coefficients(a_p, n_p, lamb, mpp)
-    es_obj = lm_angular_spectrum(sx_obj, sy_obj, ab, lamb, nm_obj, f/M, z)
+    ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
+    es_obj = lm_angular_spectrum(s_obj_cart, ab, lamb, nm_obj, f/M, z)
     es_obj = np.nan_to_num(es_obj)
 
     ''' 2) Collection.'''
     # Apply the aperture function.
-    es_obj = aperture(es_obj, sx_obj, sy_obj, NA/nm_obj)
+    #es_obj = aperture(es_obj, s_obj_cart, NA/nm_obj)
     es_obj = es_obj.reshape(3,p,q)
 
     # Compute the electric field strength factor on plane 2.
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(deepcopy(es_obj), sxx_obj, syy_obj, sxx_img, syy_img, NA/nm_obj)
+    es_img = consv_energy(deepcopy(es_obj), s_obj_cart, s_img_cart, NA/nm_obj)
     es_img = remove_r(es_img) # Should be no r component.
 
     es_img = np.nan_to_num(es_img)
@@ -132,9 +144,10 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
-        g_aux[i, :,:] = es_img[i,:,:]/costheta
+        g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
+    ''' 3) Refocusing.'''
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
     for i in xrange(3):
@@ -145,29 +158,15 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
     # FIXME (MDH): Should it be p*q or NpNq
 
-    m = np.arange(0, Np, dtype = float)
-    n = np.arange(0, Nq, dtype = float)
-    mm, nn = np.meshgrid(m,n)
+
+    mm = disc_grid.xx
+    nn = disc_grid.yy
+
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
-    nx_img = np.arange(Np, dtype = float)
-    ny_img = np.arange(Nq, dtype = float)
-
-    nx_img = NA/(M*nm_img)*((1+2.*nx_img-pad_p)/p-1)
-    ny_img = NA/(M*nm_img)*((1+2.*ny_img-pad_q)/q-1)
-
-    nxx_img, nyy_img = np.meshgrid(nx_img, ny_img)
-    sintheta = nxx_img**2 + nyy_img**2
-
-    costheta = np.sqrt(1 - sintheta**2)
-    sintheta = np.sqrt(sintheta)
-
-    cosphi = nxx_img/sintheta
-    sinphi = nyy_img/sintheta
-    
     # Convert es_cam to cartesian coords
-    es_cam_cart = g.spherical_to_cartesian(es_cam, sintheta, costheta, sinphi, cosphi)
+    es_cam_cart = g.spherical_to_cartesian(es_cam, n_sintheta, n_costheta, n_sinphi, n_cosphi)
     temp = deepcopy(es_cam_cart)
 
     # Recombine with plane wave.

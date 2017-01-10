@@ -1,48 +1,53 @@
 import numpy as np
 
 class CartesianCoordinates(object):
-    def __init__(self, xy, origin, mask = None, units = None):
+    def __init__(self, nx, ny, origin=[0.,0.], scale=[1.,1.], mask=None):
         '''
-        Encapsulate the method and attributes associated with a coordinate
+        Encapsulate the method and attributes associated with a cartesian coordinate
         system.
         '''
         self.origin = origin
-        self.x = xy[1] - origin[0]
-        self.y = xy[0] - origin[1]
-
-        self.units = units
-        if self.units != None:
-            self.x *= units[0]
-            self.y *= units[0]
-
-        self.xx, self.yy = np.meshgrid(self.x,self.y)
-        self.x = self.xx.ravel()
-        self.y = self.yy.ravel()
-    
-        self.extrema = (self.x.min(), self.y.min(), self.x.max(), self.y.max())
-
+        self.xx, self.yy = self._compute_coords(nx, ny, origin, scale)
         self.shape = self.xx.shape
-        self.ravelshape = self.x.shape
 
-    def rescale(self, units):
-        self.x *= units[0]
-        self.y *= units[0]
-        self.xx *= units[0]
-        self.yy *= units[0]
+    def _compute_coords(self, nx, ny, origin, scale):
+        '''Initializes coordinate system by translation THEN scaling (the order matters).'''
+        xy = np.ogrid[0.:nx, 0.:ny]
 
-        if self.units != None:
-            self.x /= self.units[0]
-            self.y /= self.units[0]
-        self.units = units
-        self.units = units
+        # Translate.
+        x = xy[0] - origin[0]
+        y = xy[1] - origin[1]
+        
+        # Scale.
+        x *= scale[0]
+        y *= scale[1]
+        
+        return np.meshgrid(x, y)
+
+    def scale(self, factor = 1, x_factor = 1, y_factor = 1):
+        '''Scales the coordinates by an amount factor.'''
+        self.xx *= factor*x_factor
+        self.yy *= factor*y_factor
+    
+    def translate(self, x_shift, y_shift):
+        '''Translate the coordinate system by an amount (x_shift, y_shift).'''
+        self.xx -= x_shift
+        self.yy -= y_shift
+        self.origin -= (x_shift, y_shift)
+
+    def extrema(self):
+        return (self.xx.min(), self.yy.min(), self.xx.max(), self.yy.max())
 
 class SphericalCoordinates(object):
-    def __init__(self, x, y, z):
-            sintheta = sxx_img**2 + syy_img**2
-            costheta = nmp.sqrt(1. - sintheta)
-            sintheta = nmp.sqrt(sintheta)
-
-
+    def __init__(self, cart):
+        xx = cart.xx
+        yy = cart.yy
+        sintheta = xx**2 + yy**2
+        self.costheta = np.sqrt(1. - sintheta)
+        self.sintheta = np.sqrt(sintheta)
+        self.cosphi = xx/self.sintheta
+        self.sinphi = yy/self.sintheta
+            
 
 class VectorField(object):
     def __init__(self, coordinates, dim):
