@@ -61,8 +61,71 @@ def remove_r(es):
     '''Remove r component of vector.'''
     es[0,:,:] = 0.0
     return es
+  
     
+def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, z):
+    '''Computes the scattered field.'''
+    
+    # Compute the electromagnetic strength factor on the object side 
+    # (Eq 40 Ref[1]).
+    ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
+    es_obj = lm_angular_spectrum(s_obj_cart, ab, lamb, nm_obj, r, z)
+    es_obj = np.nan_to_num(es_obj)
 
+    # Apply the aperture function. (FIXME (MDH): Check isn't necessary)
+    #es_obj = aperture(es_obj, s_obj_cart, NA/nm_obj)
+
+    p, q = s_obj_cart.shape
+    return es_obj.reshape(3,p,q)
+
+def collection(es_obj, s_obj_cart, s_img_cart, nm_obj, NA):
+    # Ensure conservation of energy is observed with abbe sine condition.
+    es_img = consv_energy(deepcopy(es_obj), s_obj_cart, s_img_cart, NA/nm_obj)
+    es_img = remove_r(es_img) # Should be no r component.
+
+    es_img = np.nan_to_num(es_img)
+    return es_img
+
+def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
+    '''Propagates the electric field from the exit pupil to the image plane.'''
+    # Compute auxiliary (Eq. 133) with zero padding!
+    #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
+    g_aux = np.zeros([3, p, q], complex)
+    for i in xrange(3):
+        g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
+        #g_aux *= np.exp(-1.j*k_img*aber)
+
+    # Apply discrete Fourier Transform (Eq. 135).
+    es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
+    for i in xrange(3):
+        es_m_n[i] = np.fft.fftshift(es_m_n[i])
+
+    # Compute the electric field at plane 3.
+    # Accounting for aliasing.
+    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
+    # FIXME (MDH): Should it be p*q or NpNq
+
+    mm = n_disc_grid.xx
+    nn = n_disc_grid.yy
+
+    for i in xrange(3):
+        es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
+
+    return es_cam
+
+def image_formation(es_cam, sph_n_img, k_img):
+    '''Produces an image from the electric fields present.'''
+    
+    # Convert es_cam to cartesian coords
+    es_cam_cart = g.spherical_to_cartesian(es_cam, sph_n_img)
+
+    #path_len = f + f/M
+    path_len = 0. # FIXME (MDH): What should the path length be?
+    es_cam_cart[0,:,:] += 1.0*np.exp(-1.j*k_img*path_len) # Plane wave normalized to amplitude 1.
+    
+    image = np.sum(np.real(es_cam_cart*np.conjugate(es_cam_cart)), axis = 0)
+
+    return image
 
 def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
               nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True):
@@ -109,112 +172,31 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # Cartesian Geometries.
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
-    n_disc_grid  = g.CartesianCoordinates(Np, Nq)
+    n_disc_grid = g.CartesianCoordinates(Np, Nq)
     n_img_cart = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
 
     # Spherical Geometries.
-    sph_img = g.SphericalCoordinates(s_img_cart)
+    sph_img   = g.SphericalCoordinates(s_img_cart)
     sph_n_img = g.SphericalCoordinates(n_img_cart)
 
-    ''' 1) Scattering.'''
+    # 0) Propagate the Incident field to the camera plane.
+    # FIXME: Implement separately from image_formation.
+
+    # 1) Scattering.
     # Compute the angular spectrum incident on plane 1.
-    # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
-    ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
-    es_obj = lm_angular_spectrum(s_obj_cart, ab, lamb, nm_obj, f/M, z)
-    es_obj = np.nan_to_num(es_obj)
+    es_obj = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, f/M, z)
 
-    ''' 2) Collection.'''
-    # Apply the aperture function. (FIXME (MDH): Check isn't necessary)
-    #es_obj = aperture(es_obj, s_obj_cart, NA/nm_obj)
-    es_obj = es_obj.reshape(3,p,q)
-
+    # 2) Collection.
     # Compute the electric field strength factor on plane 2.
-    # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(deepcopy(es_obj), s_obj_cart, s_img_cart, NA/nm_obj)
-    es_img = remove_r(es_img) # Should be no r component.
+    es_img = collection(es_obj, s_obj_cart, s_img_cart, nm_obj, NA)
 
-    es_img = np.nan_to_num(es_img)
+    # 3) Refocus.
+    # Compute the electric fields incident on the camera.
+    es_cam = refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
-    # Compute auxiliary (Eq. 133) with zero padding!
-    #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = np.zeros([3, p, q], complex)
-    for i in xrange(3):
-        g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
-        #g_aux *= np.exp(-1.j*k_img*aber)
-
-    ''' 3) Refocusing.'''
-    # Apply discrete Fourier Transform (Eq. 135).
-    es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
-    for i in xrange(3):
-        es_m_n[i] = np.fft.ifftshift(es_m_n[i])
-
-    # Compute the electric field at plane 3.
-    # Accounting for aliasing.
-    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
-    # FIXME (MDH): Should it be p*q or NpNq
-
-    mm = n_disc_grid.xx
-    nn = n_disc_grid.yy
-
-    for i in xrange(3):
-        es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
-
-    # Convert es_cam to cartesian coords
-    es_cam_cart = g.spherical_to_cartesian(es_cam, sph_n_img)
-    temp = deepcopy(es_cam_cart)
-
+    # 4) Image formation.
     # Recombine with plane wave.
-    #path_len = f + f/M
-    path_len = 0. # FIXME (MDH): What should the path length be?
-    es_cam_cart[0,:,:] += 1.0*np.exp(-1.j*k_img*path_len) # Plane wave normalized to amplitude 1.
-    
-    image = np.sum(np.real(es_cam_cart*np.conjugate(es_cam_cart)), axis = 0)
-
-    if quiet == False:
-        # Electric Field Strength After Aperture At P_1.
-        plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
-        plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture')
-        mng = plt.get_current_fig_manager()
-        mng.window.showMaximized()
-        plt.show()
-
-        # Electric Field Strength at P2.
-        plt.imshow(np.hstack([np.abs(es_img[0]), np.abs(es_img[1]), np.abs(es_img[2])]))
-        plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$')
-        mng = plt.get_current_fig_manager()
-        mng.window.showMaximized()
-        plt.show()
-
-        # Auxiliary Field at P2.
-        plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
-        plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
-        mng = plt.get_current_fig_manager()
-        mng.window.showMaximized()
-        plt.show()
-
-        # FFT of Auxiliary field.
-        plt.imshow(np.hstack([np.abs(es_m_n[0]), np.abs(es_m_n[1]), np.abs(es_m_n[2])]))
-        plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$')
-        mng = plt.get_current_fig_manager()
-        mng.window.showMaximized()
-        
-        plt.show()
-
-        # Electric Field After Dealiasing.
-        plt.imshow(np.hstack([np.abs(temp[0]), np.abs(temp[1]), np.abs(temp[2])]))
-        plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing')
-        mng = plt.get_current_fig_manager()
-        mng.window.showMaximized()
-        
-        plt.show()
-
-        # Real and Imaginary Components of the image.
-        real_part = np.sum(np.real(es_cam_cart), axis = 0)
-        imag_part = np.sum(np.imag(es_cam_cart), axis = 0)
-        
-        plt.imshow(np.hstack([real_part,imag_part]))
-        plt.title('Es_cam_cart real and imaginary')
-        plt.show()
+    image = image_formation(es_cam, sph_n_img, k_img)
 
     return image
 
@@ -239,6 +221,54 @@ def test_debye():
     plt.imshow(image)
     plt.gray()
     plt.show()
+
+def test_plots():
+    
+        # Electric Field Strength After Aperture At P_1.
+    plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
+    plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+    # Electric Field Strength at P2.
+    plt.imshow(np.hstack([np.abs(es_img[0]), np.abs(es_img[1]), np.abs(es_img[2])]))
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+    # Auxiliary Field at P2.
+    plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
+    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+    # FFT of Auxiliary field.
+    plt.imshow(np.hstack([np.abs(es_m_n[0]), np.abs(es_m_n[1]), np.abs(es_m_n[2])]))
+    plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
+    plt.show()
+    '''
+    # Electric Field After Dealiasing.
+    plt.imshow(np.hstack([np.abs(temp[0]), np.abs(temp[1]), np.abs(temp[2])]))
+    plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
+    plt.show()
+    '''
+    # Real and Imaginary Components of the image.
+    real_part = np.sum(np.real(es_cam_cart), axis = 0)
+    imag_part = np.sum(np.imag(es_cam_cart), axis = 0)
+
+    plt.imshow(np.hstack([real_part,imag_part]))
+    plt.title('Es_cam_cart real and imaginary')
+    plt.show()
+
 
 if __name__ == '__main__':
     test_debye()
