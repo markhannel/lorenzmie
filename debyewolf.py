@@ -64,7 +64,7 @@ def remove_r(es):
   
     
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, z):
-    '''Computes the scattered field.'''
+    '''Compute the angular spectrum arriving at the entrance pupil.'''
     
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
@@ -79,15 +79,18 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, z):
     return es_obj.reshape(3,p,q)
 
 def collection(es_obj, s_obj_cart, s_img_cart, nm_obj, NA):
+    '''Compute the angular spectrum leaving the exit pupil.'''
+
     # Ensure conservation of energy is observed with abbe sine condition.
     es_img = consv_energy(deepcopy(es_obj), s_obj_cart, s_img_cart, NA/nm_obj)
     es_img = remove_r(es_img) # Should be no r component.
-
     es_img = np.nan_to_num(es_img)
+
     return es_img
 
 def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     '''Propagates the electric field from the exit pupil to the image plane.'''
+    
     # Compute auxiliary (Eq. 133) with zero padding!
     #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
@@ -170,6 +173,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     obj_scale = [obj_factor*1./p, obj_factor*1./q]
 
     # Cartesian Geometries.
+    # FIXME (MDH): is it necessary to have s_obj_cart?
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
     n_disc_grid = g.CartesianCoordinates(Np, Nq)
@@ -223,8 +227,7 @@ def test_debye():
     plt.show()
 
 def test_plots():
-    
-        # Electric Field Strength After Aperture At P_1.
+    # Electric Field Strength After Aperture At P_1.
     plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
     plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture')
     mng = plt.get_current_fig_manager()
