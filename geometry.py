@@ -42,12 +42,18 @@ class SphericalCoordinates(object):
     def __init__(self, cart):
         xx = cart.xx
         yy = cart.yy
-        sintheta = xx**2 + yy**2
-        self.costheta = np.sqrt(1. - sintheta)
-        self.sintheta = np.sqrt(sintheta)
-        self.cosphi = xx/self.sintheta
-        self.sinphi = yy/self.sintheta
-            
+        r_squared = xx**2 + yy**2
+        #inds = np.where((r_squared-0.5)**2 < .25) # Keep r_squared between 0 and 1.
+        inds = np.where(r_squared > 0.0)
+
+        self.costheta = np.sqrt(1. - r_squared)
+        self.sintheta = np.sqrt(r_squared)
+        
+        self.cosphi = np.ones(r_squared.shape)
+        self.sinphi = np.ones(r_squared.shape)
+
+        self.cosphi[inds] = xx[inds]/self.sintheta[inds]
+        self.sinphi[inds] = yy[inds]/self.sintheta[inds]
 
 class VectorField(object):
     def __init__(self, coordinates, dim):

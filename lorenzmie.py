@@ -50,9 +50,16 @@ def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
 
     # Compute relevant coordinates.
     unit_rho_sq = sx**2+sy**2
-    costheta = np.sqrt(1. - unit_rho_sq)
-    costheta /= np.sqrt(1 + (2*z/r)*np.sqrt(1 - unit_rho_sq))
-    sintheta = np.sqrt(1 - costheta**2)
+    inds = np.where(unit_rho_sq < 1)
+
+    costheta = np.zeros(npts)
+    
+    cosphi = np.ones(npts)
+    sinphi = np.ones(npts)
+
+    costheta[inds] = np.sqrt(1. - unit_rho_sq[inds])
+    costheta[inds] /= np.sqrt(1 + (2*z/r)*np.sqrt(1. - unit_rho_sq[inds]))
+    sintheta = np.sqrt(1. - costheta**2)
 
     cosphi   = sx/sintheta
     sinphi   = sy/sintheta
