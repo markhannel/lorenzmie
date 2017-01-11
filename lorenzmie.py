@@ -64,7 +64,8 @@ def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
     cosphi   = sx/sintheta
     sinphi   = sy/sintheta
 
-    kr = k*(r*np.sqrt(1 + 2*(z/r)*np.sqrt(1.-unit_rho_sq)))  # reduced radial coordinate
+    kr = np.zeros(npts)
+    kr[inds] = k*(r*np.sqrt(1 + 2*(z/r)*np.sqrt(1.-unit_rho_sq[inds])))  # reduced radial coordinate
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
