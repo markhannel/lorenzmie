@@ -19,13 +19,13 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
         z: If field is required in a single plane, then
             z is the plane's distance from the sphere's center
             [pixels].
-        a: [2,nc] array of a and b scattering coefficients, where
+        ab: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
     Keywords:
         lamb: wavelength of light in medium [pixels]
         cartesian: if True, field is expressed as (x,yz) else (r, theta, phi)
     Returns:
-        field: [3,npts] scattered electricc field
+        field: [3,npts] scattered electric field
     """
 
     # Check that inputs are numpy arrays
@@ -59,18 +59,12 @@ def sphericalfield(x, y, z, ab, lamb, cartesian = False):
     # center of the sphere.
     rho   = nmp.sqrt(x**2 + y**2)
     r     = nmp.sqrt(rho**2 + z**2)
-    theta = nmp.arctan(rho/z)
-    phi   = nmp.arctan(y/x)
+    theta = nmp.arctan2(rho, z)
+    phi   = nmp.arctan2(y, x)
     costheta = nmp.cos(theta)
     sintheta = nmp.sin(theta)
     cosphi   = nmp.cos(phi)
     sinphi   = nmp.sin(phi)
-    
-    #Fix arctan results of NAN to zero
-    b = nmp.where(theta ==0)[0]
-    theta[b] = 0
-    b = nmp.where(phi == 0)[0]
-    phi[0] = 0
 
     kr = k*r                        # reduced radial coordinate
 
