@@ -48,12 +48,13 @@ def consv_energy(es, s_obj, s_img, r_max):
     sx_img = s_img.xx
     sy_img = s_img.yy
     r_2 = sx_obj**2 +sy_obj**2
-    indices = np.where(r_2 <= r_max**2)
+    inds = np.where(r_2 <= r_max**2)
+    cos_theta_obj = np.zeros(sx_obj.shape)
 
     # Compute the necessary cosine terms in Eq 108.
     cos_theta_img = np.sqrt(1. - (sx_img**2+sy_img**2))
-    cos_theta_obj = np.sqrt(1. - (sx_obj**2+sy_obj**2))
-    es[:,indices[0],indices[1]] *= np.sqrt(cos_theta_img[indices[0],indices[1]]/cos_theta_obj[indices[0],indices[1]])
+    cos_theta_obj[inds] = np.sqrt(1. - (sx_obj[inds]**2+sy_obj[inds]**2))
+    es[:,inds[0],inds[1]] *= np.sqrt(cos_theta_img[inds[0],inds[1]]/cos_theta_obj[inds[0],inds[1]])
 
     return es
 
@@ -63,26 +64,33 @@ def remove_r(es):
     return es
   
     
-def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, z):
+def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     '''Compute the angular spectrum arriving at the entrance pupil.'''
     
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
-    es_obj = lm_angular_spectrum(s_obj_cart, ab, lamb, nm_obj, r, z)
-    es_obj = np.nan_to_num(es_obj)
+    sx = s_obj_cart.xx.ravel()
+    sy = s_obj_cart.yy.ravel()
+    
+    inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
+    
+    sx *= r
+    sy *= r
+    p, q = s_obj_cart.shape
+    ang_spec = np.zeros([3, p*q], dtype = complex)
+    ang_spec[:,inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, r, z)
 
     # Apply the aperture function. (FIXME (MDH): Check isn't necessary)
-    #es_obj = aperture(es_obj, s_obj_cart, NA/nm_obj)
+    #ang_spec = aperture(ang_spec, s_obj_cart, NA/nm_obj)
 
-    p, q = s_obj_cart.shape
-    return es_obj.reshape(3,p,q)
+    return ang_spec.reshape(3,p,q)
 
-def collection(es_obj, s_obj_cart, s_img_cart, nm_obj, NA):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(deepcopy(es_obj), s_obj_cart, s_img_cart, NA/nm_obj)
+    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, NA/nm_obj)
     es_img = remove_r(es_img) # Should be no r component.
     es_img = np.nan_to_num(es_img)
 
@@ -188,11 +196,11 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
 
     # 1) Scattering.
     # Compute the angular spectrum incident on plane 1.
-    es_obj = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, f/M, z)
+    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, f/M, z)
 
     # 2) Collection.
     # Compute the electric field strength factor on plane 2.
-    es_img = collection(es_obj, s_obj_cart, s_img_cart, nm_obj, NA)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA)
 
     # 3) Refocus.
     # Compute the electric fields incident on the camera.
@@ -216,7 +224,7 @@ def test_discretize():
     print del_x/M
 
 def test_debye():
-    z = 10.
+    z = 20.
     a_p = 1.0
     n_p = 1.4
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 

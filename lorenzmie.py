@@ -9,7 +9,7 @@ def check_if_numpy(x, char_x):
         return True
 
 
-def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
+def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     """
     Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
@@ -17,9 +17,10 @@ def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
     Args:
         sx: [npts] array of pixel coordinates
         sy: [npts] array of pixel coordinates
-        f: [float] distance to focal plane [pixels]
+        f:  [float] distance to focal plane [pixels]
         ab: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
+
     Keywords:
         lamb: wavelength of light in medium [pixels]
         cartesian: if True, field is expressed as (x,y,z) else (r, theta, phi)
@@ -27,45 +28,23 @@ def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
     Returns:
         field: [3,npts] scattered electric field strength factor
     """
-    '''
-    # Check that inputs are numpy arrays
-    for var, char_var in zip([sx,sy,ab], ['sx', 'sy', 'ab']):
-        if check_if_numpy(var, char_var) == False:
-            print 'sx, sy and ab must be numpy arrays'
-            return None
 
-    if sx.shape != sy.shape:
-        print 'sx has shape {} while sy has shape {}'.format(sx.shape, sy.shape)
-        print 'and yet their dimensions must match.'
-        return None
-    '''
-
-    sx = geom.xx.ravel()
-    sy = geom.yy.ravel()
-    
     npts = len(sx)
     nc = len(ab[:,0])-1     # number of terms required for convergence
 
     k = 2.0*np.pi*n_m/ lamb # wavenumber in medium [pixel^-1]
 
     # Compute relevant coordinates.
-    unit_rho_sq = sx**2+sy**2
-    inds = np.where(unit_rho_sq < 1)
+    rho_sq = sx**2+sy**2
+    phi = np.arctan2(sy, sx)
+    theta = np.arctan2(np.sqrt(rho_sq), z + f)
+    sintheta = np.sin(theta)
+    costheta = np.cos(theta)
+    cosphi = np.cos(phi)
+    sinphi = np.sin(phi)
+    r = (z+f)**2/np.sqrt((z+f)**2+rho_sq)
 
-    costheta = np.zeros(npts)
-    
-    cosphi = np.ones(npts)
-    sinphi = np.ones(npts)
-
-    costheta[inds] = np.sqrt(1. - unit_rho_sq[inds])
-    costheta[inds] /= np.sqrt(1 + (2*z/r)*np.sqrt(1. - unit_rho_sq[inds]))
-    sintheta = np.sqrt(1. - costheta**2)
-
-    cosphi   = sx/sintheta
-    sinphi   = sy/sintheta
-
-    kr = np.zeros(npts)
-    kr[inds] = k*(r*np.sqrt(1 + 2*(z/r)*np.sqrt(1.-unit_rho_sq[inds])))  # reduced radial coordinate
+    kr = k*r
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
