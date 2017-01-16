@@ -11,30 +11,39 @@ def check_if_numpy(x, char_x):
 
 def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     """
-    Calculate the angular spectrum of the electric field strength factor given
-    scattering coefficients.
+    Calculate the angular spectrum of the scattered field of a lorenz-mie
+    scatterer with sphere coefficients ab. Result is computer in vector
+    spherical coordinates.
 
     Args:
-        sx: [npts] array of pixel coordinates
-        sy: [npts] array of pixel coordinates
-        f:  [float] distance to focal plane [pixels]
+        sx: [npts] array of pixel coordinates.
+        sy: [npts] array of pixel coordinates.
         ab: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
-
-    Keywords:
-        lamb: wavelength of light in medium [pixels]
-        cartesian: if True, field is expressed as (x,y,z) else (r, theta, phi)
+        lamb: [um] sets the wavelength of the scattered light.
+        n_m: [R.I.U.] refractive index of the medium immersing the scatterer.
+        f:  [float] distance to focal plane
+        z:  [um] distance from the focal plane to the scatterer.
+            Default: 0 um
 
     Returns:
-        field: [3,npts] scattered electric field strength factor
+        ang_spec: [3,npts] angular spectrum in spherical coordinates.
     """
 
+    # Necessary constants.
     npts = len(sx)
     nc = len(ab[:,0])-1     # number of terms required for convergence
 
     k = 2.0*np.pi*n_m/ lamb # wavenumber in medium [pixel^-1]
-
-    # Compute relevant coordinates.
+    
+    # Compute the points at which we want to compute the electric field.
+    '''
+     We want to compute the field on a spherical surface $S_1$ centered
+     at the focal plane. However, if z is not 0 um, the scatterer is not 
+     centered in the focal plane. Find the points (r,\theta,\phi) which
+     define the distances between the scatterer and the desired computation
+     points on the spherical surface $S_1$.
+    '''
     rho_sq = sx**2+sy**2
     phi = np.arctan2(sy, sx)
     theta = np.arctan2(np.sqrt(rho_sq), z + f)
@@ -110,9 +119,10 @@ def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
     Es[0,:] *= cosphi * sintheta / (k**2*f)
-    Es[1,:] *= cosphi / k
-    Es[2,:] *= sinphi / k
+    Es[1,:] *= cosphi / k  # Didn't divide by r. See Eq 40 Ref 1.
+    Es[2,:] *= sinphi / k  
 
+    # Complete Eq. 40 Ref 1.
     Es *= np.exp(1.0j*kf)
     
     return Es
