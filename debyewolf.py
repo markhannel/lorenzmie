@@ -5,7 +5,6 @@ from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
 import geometry as g
-from copy import deepcopy
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
@@ -75,8 +74,8 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     
     inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
     
-    sx *= r
-    sy *= r
+    sx *= r*NA/nm_obj
+    sy *= r*NA/nm_obj
     p, q = s_obj_cart.shape
     ang_spec = np.zeros([3, p*q], dtype = complex)
     ang_spec[:,inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, r, z)
@@ -98,13 +97,14 @@ def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA):
 
 def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     '''Propagates the electric field from the exit pupil to the image plane.'''
-    
+        
     # Compute auxiliary (Eq. 133) with zero padding!
     #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
         g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
+
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
@@ -121,6 +121,16 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
 
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
+
+        
+    # Auxiliary Field at P2.
+    plt.imshow(np.hstack([np.abs(es_cam[0]), np.abs(es_cam[1]), np.abs(es_cam[2])]))
+    plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+
 
     return es_cam
 
@@ -198,6 +208,16 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # Compute the angular spectrum incident on plane 1.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, f/M, z)
 
+
+    # Auxiliary Field at P2.
+    plt.imshow(np.hstack([np.real(ang_spec[0]), np.real(ang_spec[1]), np.real(ang_spec[2])]))
+    plt.title(r'ang_spec before $(r, \theta, \phi)$ at $P_2$')
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+
+
     # 2) Collection.
     # Compute the electric field strength factor on plane 2.
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA)
@@ -224,7 +244,7 @@ def test_discretize():
     print del_x/M
 
 def test_debye():
-    z = 20.
+    z = 10.
     a_p = 1.0
     n_p = 1.4
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 

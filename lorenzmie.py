@@ -45,6 +45,7 @@ def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     r = (z+f)**2/np.sqrt((z+f)**2+rho_sq)
 
     kr = k*r
+    kf = k*f
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
@@ -108,10 +109,10 @@ def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     # geometric factors were divided out of the vector
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
-    Es[0,:] *= cosphi * sintheta / (k**2*r)
+    Es[0,:] *= cosphi * sintheta / (k**2*f)
     Es[1,:] *= cosphi / k
     Es[2,:] *= sinphi / k
 
-    Es *= np.exp(1.0j*kr)
+    Es *= np.exp(1.0j*kf)
     
     return Es
