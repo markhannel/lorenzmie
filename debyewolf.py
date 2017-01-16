@@ -125,9 +125,7 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         
     # Auxiliary Field at P2.
     plt.imshow(np.hstack([np.abs(es_cam[0]), np.abs(es_cam[1]), np.abs(es_cam[2])]))
-    plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$') 
     plt.show()
 
 
@@ -148,25 +146,37 @@ def image_formation(es_cam, sph_n_img, k_img):
 
     return image
 
-def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True):
+def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.447, mpp = 0.135, 
+              M = 100, f = 20.*10**5, dim = [201,201]):
     '''
-    Returns the electric fields in the imaging plane due to a spherical
-    scatterer at (x,y,z) with radius a_p and refractice index n_p.
+    Returns an image in the camera plane due to a spherical scatterer with radius a_p and 
+    refractive index n_p at a height z above the focal plane. 
 
     Args:
-        x,y:   [pix] define where the image will be evaluated.
         z:     [um] scatterer's distance from the focal plane.
         a_p:   [um] sets the radius of the spherical scatterer.
         n_p:   [R.I.U.] sets the refractive index of the scatterer.
-        nm:    [R.I.U.] sets the refractive index of the medium.
-        lamb:  [um] sets the wavelength of the coherent illumination.
-               Default: 0.447 um. 
+        nm_obj:[R.I.U.] sets the refractive index of medium immersing the scattered.
+               Default: 1.339 (Water)
+        nm_img:[R.I.U.] sets the refractive index of the medium immersing the camera.
+               Default: 1.00 (Air)
+        NA:    [unitless] The numerical aperture of the optical train.
+               Default: 1.45 (100x Nikon Lambda Series)
+        lamb:  [um] wavelength of the incident illumination.
+               Default: 0.447 (Coherent Cube.. blue)
         mpp:   [um/pix] sets the size of a pixel.
                Default: 0.135.
+        M:     [unitless] Magnification of the optical train.
+               Default: 100
+        f:     [um]: focal length of the objective. Sets the distance between the entrance
+               pupil and the focal plane.
+               Default: 20E5 um.
+        dim:   [nx, ny]: (will) set the size of the resulting image.
+               Default: [201,201]
 
     Return:
-        field: [3,npts]
+        image: [?, ?] - Currently dim is not implemented. The resulting image size is dictated
+               by the padding chose for the fourier transform.
 
     Ref[1]: Capoglu et al. (2012). "The Microscope in a Computer:...", 
             Applied Optics, 38(34), 7085.
@@ -184,7 +194,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # Origins for the coordinate systems.
     origin = [.5*(p-1.), .5*(q-1.)]
     
-    # Scale factors.
+    # Scale factors for the coordinate systems.
     img_factor = 2*NA/(M*nm_img)
     obj_factor = 2*NA/nm_obj
     img_scale = [img_factor*1./p, img_factor*1./q]
@@ -205,29 +215,25 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
     # FIXME: Implement separately from image_formation.
 
     # 1) Scattering.
-    # Compute the angular spectrum incident on plane 1.
+    # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, f/M, z)
-
 
     # Auxiliary Field at P2.
     plt.imshow(np.hstack([np.real(ang_spec[0]), np.real(ang_spec[1]), np.real(ang_spec[2])]))
-    plt.title(r'ang_spec before $(r, \theta, \phi)$ at $P_2$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'ang_spec before $(r, \theta, \phi)$ at $P_2$') 
     plt.show()
 
-
-
     # 2) Collection.
-    # Compute the electric field strength factor on plane 2.
+    # Compute the electric field strength factor leaving the tube lens.
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA)
 
     # 3) Refocus.
-    # Compute the electric fields incident on the camera.
+    # Input the electric field strength into the debye-wolf formalism to compute the 
+    # scattered field at the camera plane.
     es_cam = refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
     # 4) Image formation.
-    # Recombine with plane wave.
+    # Combine the electric fields in the image plane to form an image.
     image = image_formation(es_cam, sph_n_img, k_img)
 
     return image
@@ -257,38 +263,28 @@ def test_debye():
 def test_plots():
     # Electric Field Strength After Aperture At P_1.
     plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
-    plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture') 
     plt.show()
 
     # Electric Field Strength at P2.
     plt.imshow(np.hstack([np.abs(es_img[0]), np.abs(es_img[1]), np.abs(es_img[2])]))
-    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$') 
     plt.show()
 
     # Auxiliary Field at P2.
     plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
-    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$') 
     plt.show()
 
     # FFT of Auxiliary field.
     plt.imshow(np.hstack([np.abs(es_m_n[0]), np.abs(es_m_n[1]), np.abs(es_m_n[2])]))
-    plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$') 
 
     plt.show()
     '''
     # Electric Field After Dealiasing.
     plt.imshow(np.hstack([np.abs(temp[0]), np.abs(temp[1]), np.abs(temp[2])]))
-    plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
+    plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing') 
 
     plt.show()
     '''
