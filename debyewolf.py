@@ -39,9 +39,13 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
 def consv_energy(es, s_obj, s_img, r_max):
     '''
-    Changes electric field strength factor density to obey the conversation
-    of energy.
+    Changes electric field strength factor density to obey the conversation of energy. 
+    See Eq. 108 of Ref. 1.
+
+    FIXME (MDH): Should spherical coordinates be done differently?
     '''
+
+    # Determine the
     sx_obj = s_obj.xx
     sy_obj = s_obj.yy
     sx_img = s_img.xx
@@ -53,6 +57,8 @@ def consv_energy(es, s_obj, s_img, r_max):
     # Compute the necessary cosine terms in Eq 108.
     cos_theta_img = np.sqrt(1. - (sx_img**2+sy_img**2))
     cos_theta_obj[inds] = np.sqrt(1. - (sx_obj[inds]**2+sy_obj[inds]**2))
+
+    # Obey the conservation of energy and make use of the abbe-sine condition. Eq. 108. Ref. 1.
     es[:,inds[0],inds[1]] *= np.sqrt(cos_theta_img[inds[0],inds[1]]/cos_theta_obj[inds[0],inds[1]])
 
     return es
@@ -66,8 +72,7 @@ def remove_r(es):
 def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     '''Compute the angular spectrum arriving at the entrance pupil.'''
     
-    # Compute the electromagnetic strength factor on the object side 
-    # (Eq 40 Ref[1]).
+    
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
@@ -77,6 +82,9 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     sx *= r*NA/nm_obj
     sy *= r*NA/nm_obj
     p, q = s_obj_cart.shape
+
+    # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]). 
+    # By default, ang_spec = 0 on all points where sx**2 + sy**2 >= (NA/nm_obj)**2
     ang_spec = np.zeros([3, p*q], dtype = complex)
     ang_spec[:,inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, r, z)
 
@@ -99,12 +107,11 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     '''Propagates the electric field from the exit pupil to the image plane.'''
         
     # Compute auxiliary (Eq. 133) with zero padding!
-    #aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
+    # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
         g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
-
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
