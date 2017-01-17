@@ -5,7 +5,9 @@ from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
 import geometry as g
+from spheredhm import spheredhm
 from copy import deepcopy
+
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
@@ -220,13 +222,20 @@ def test_debye():
     a_p = 1.0
     n_p = 1.4
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True)
+              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = False)
+    imageDHM = spheredhm([0, 0 , z], a_p, n_p, 1.339, [201, 201], mpp=0.135, lamb=0.447)
     import matplotlib.pyplot as plt
     plt.imshow(image)
     plt.gray()
+    plt.savefig('opticsModel_ps_1.0.png')
     plt.show()
 
-def test_plots():
+    plt.imshow(imageDHM)
+    plt.gray()
+    plt.savefig('sphereDHM_ps_1.0.png')
+    plt.show()
+
+def test_plots(es_obj, es_img, es_m_n, es_cam_cart):
     # Electric Field Strength After Aperture At P_1.
     plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
     plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture')
@@ -241,12 +250,12 @@ def test_plots():
     mng.window.showMaximized()
     plt.show()
 
-    # Auxiliary Field at P2.
-    plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
-    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
-    plt.show()
+    # # Auxiliary Field at P2.
+    # plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
+    # plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$')
+    # mng = plt.get_current_fig_manager()
+    # mng.window.showMaximized()
+    # plt.show()
 
     # FFT of Auxiliary field.
     plt.imshow(np.hstack([np.abs(es_m_n[0]), np.abs(es_m_n[1]), np.abs(es_m_n[2])]))
