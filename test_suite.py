@@ -10,7 +10,7 @@ class LorenzMieTest(object):
         # Properties common to some of the tests.
         self.sample = [0.5, 1.5, 1.3389] # Sample parameters [a_p, n_p, nm_obj]
         self.lamb = 0.447 # [um]
-        self.optical = [1.000, 1.45, 2E5, 100] # Optical Train Properties [nm_img, NA, f, M]
+        self.optical = [1.000, 1.45, 2E3, 100] # Optical Train Properties [nm_img, NA, f, M]
         self.mpp = 0.135 # [um/pix]
         self.dim = [201,201]
 
@@ -20,7 +20,6 @@ class LorenzMieTest(object):
         a_p, n_p, nm_obj = self.sample
         lamb = self.lamb
         nm_img, NA, f, M = self.optical
-        r = f/M
 
         # Compute the sphere coefficients for the sample in question.
         ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
@@ -30,7 +29,7 @@ class LorenzMieTest(object):
 
         # Compute the angular Spectrum. Set ang_spec to 0.0 outside of the region inds.
         ang_spec = np.zeros([3, p*q], dtype = complex)
-        ang_spec[:, inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, f/M, z)
+        ang_spec[:, inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, z)
         return ang_spec.reshape(3, p, q)
         
     def vsSpheredhm(self):
@@ -47,10 +46,10 @@ class LorenzMieTest(object):
 
         # Compute the angular spectrum with the z offset set to 0.
         z_offset = 0. # [um]        
-        geom = g.CartesianCoordinates(dim_x, dim_y, [-dim_x/2., -dim_y/2.], scale = [mpp, mpp])
+        geom = g.CartesianCoordinates(dim_x, dim_y, [dim_x/2., dim_y/2.], scale = [mpp, mpp])
         sx = geom.xx.ravel()
         sy = geom.yy.ravel()
-        self.ang_spec = self.computeAngSpectrum(sx, sy, z_offset, dim_x, dim_y)
+        self.ang_spec = self.computeAngSpectrum(sx, sy, z_pix, dim_x, dim_y)
 
         # Use the angular spectrum to find the field at the focal plane.
         rho = np.sqrt(geom.xx**2 + geom.yy**2)
@@ -63,6 +62,9 @@ class LorenzMieTest(object):
         sinphi = np.sin(phi)
 
         es_focal = self.ang_spec*np.exp(-1j*k*r)/r
+        
+        plt.imshow(np.hstack(map(np.abs, [self.ang_spec[0], self.ang_spec[1], self.ang_spec[2]])))
+        plt.show()
 
         # Convert es_focal to spherical coordinates
         es_focal_cart = np.zeros(es_focal.shape, dtype = complex)
@@ -80,11 +82,11 @@ class LorenzMieTest(object):
         
         # Combine the scattered field and the incident field to produce an image.
         es_focal_cart *= np.exp(np.complex(0.,-k*z_pix)) # Plane wave's phase difference.
-        es_focal_cart[:,0] += 1.0 # Combine with plane wave.
+        es_focal_cart[0, :, :] += 1.0 # Combine with plane wave.
         ang_image = np.sum(np.real(es_focal_cart*np.conj(es_focal_cart)), axis = 0)
 
         ang_image = ang_image.reshape(dim_y, dim_x)
-        print type(dim_y)
+
         # Use spheredhm to generate an image at the focal plane.
         image = spheredhm([0,0,z_pix], a_p, n_p, nm_obj, self.dim, self.mpp, self.lamb)
 
@@ -92,6 +94,14 @@ class LorenzMieTest(object):
         plt.imshow(np.hstack([ang_image, image]))
         plt.gray()
         plt.show()
+
+    def radialDependence(self):
+        '''Tests the radial dependence of lm_ang_spectrum.'''
+        # Necessary variables.
+
+        # Compute angular spectrum at three different radial distances.
+
+        # Plot results.
 
 if __name__ == '__main__':
     # Instantiate test class.
