@@ -1,5 +1,3 @@
-## FIXME: Determine if you should use fftshift or ifftshift or a 2d shift.
-
 import numpy as np
 from lorenzmie import lm_angular_spectrum
 from sphere_coefficients import sphere_coefficients
@@ -77,21 +75,17 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
     
-    inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
-    
-    sx *= r*NA/nm_obj
-    sy *= r*NA/nm_obj
+    sx *= r
+    sy *= r
     p, q = s_obj_cart.shape
 
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]). 
     # By default, ang_spec = 0 on all points where sx**2 + sy**2 >= (NA/nm_obj)**2
+    inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
     ang_spec = np.zeros([3, p*q], dtype = complex)
     ang_spec[:,inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, r, z)
 
-    # Apply the aperture function. (FIXME (MDH): Check isn't necessary)
-    #ang_spec = aperture(ang_spec, s_obj_cart, NA/nm_obj)
-
-    return ang_spec.reshape(3,p,q)
+    return ang_spec.reshape(3, p, q)
 
 def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA):
     '''Compute the angular spectrum leaving the exit pupil.'''
@@ -154,7 +148,7 @@ def image_formation(es_cam, sph_n_img, k_img):
     return image
 
 def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.447, mpp = 0.135, 
-              M = 100, f = 20.*10**5, dim = [201,201]):
+              M = 100, f = 2.E5, dim = [201,201]):
     '''
     Returns an image in the camera plane due to a spherical scatterer with radius a_p and 
     refractive index n_p at a height z above the focal plane. 
@@ -257,52 +251,31 @@ def test_discretize():
     print del_x/M
 
 def test_debye():
+    import matplotlib.pyplot as plt
+    from spheredhm import spheredhm
+
+    # Necessary parameters.
     z = 10.
     a_p = 1.0
     n_p = 1.4
-    image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 
-              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = True)
-    import matplotlib.pyplot as plt
-    plt.imshow(image)
+
+    # Produce image with Debye-Wolf Formalism.
+    deb_image = debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, 
+                      lamb = 0.447, mpp = 0.135, M = 100, f = 20.*10**2, dim = [201,201])
+    plt.imshow(deb_image)
+    plt.title('Hologram with Debye-Wolf')
     plt.gray()
     plt.show()
+    
+    # Produce image in the focal plane.
+    dim = deb_image.shape
+    image = spheredhm([0,0,z/0.135], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
-def test_plots():
-    # Electric Field Strength After Aperture At P_1.
-    plt.imshow(np.hstack([np.abs(es_obj[0]), np.abs(es_obj[1]), np.abs(es_obj[2])]))
-    plt.title(r'Electric Field strength  $(r, \theta, \phi)$ at $P_1$ After Aperture') 
+    # Visually compare the two.
+    plt.imshow(np.hstack([deb_image, image]))
+    plt.title('Comparing Debye-Wolf Hologram to Spheredhm Hologram')
+    plt.gray()
     plt.show()
-
-    # Electric Field Strength at P2.
-    plt.imshow(np.hstack([np.abs(es_img[0]), np.abs(es_img[1]), np.abs(es_img[2])]))
-    plt.title(r'Electric Field strength $(r, \theta, \phi)$ at $P_2$') 
-    plt.show()
-
-    # Auxiliary Field at P2.
-    plt.imshow(np.hstack([np.abs(g_aux[0]), np.abs(g_aux[1]), np.abs(g_aux[2])]))
-    plt.title(r'Auxiliary field $(r, \theta, \phi)$ at $P_2$') 
-    plt.show()
-
-    # FFT of Auxiliary field.
-    plt.imshow(np.hstack([np.abs(es_m_n[0]), np.abs(es_m_n[1]), np.abs(es_m_n[2])]))
-    plt.title(r'Fourier Transform of aux $(r, \theta, \phi)$') 
-
-    plt.show()
-    '''
-    # Electric Field After Dealiasing.
-    plt.imshow(np.hstack([np.abs(temp[0]), np.abs(temp[1]), np.abs(temp[2])]))
-    plt.title(r'Electric field $(x,y,z)$ at the camera plane after dealiasing') 
-
-    plt.show()
-    '''
-    # Real and Imaginary Components of the image.
-    real_part = np.sum(np.real(es_cam_cart), axis = 0)
-    imag_part = np.sum(np.imag(es_cam_cart), axis = 0)
-
-    plt.imshow(np.hstack([real_part,imag_part]))
-    plt.title('Es_cam_cart real and imaginary')
-    plt.show()
-
 
 if __name__ == '__main__':
     test_debye()
