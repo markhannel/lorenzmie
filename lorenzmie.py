@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
@@ -126,3 +127,60 @@ def lm_angular_spectrum(sx, sy, ab, lamb, n_m, f, z = 0):
     Es *= np.exp(1.0j*kf)
     
     return Es
+
+
+def test_lm_ang_spectrum():
+    import geometry as g
+    from sphere_coefficients import sphere_coefficients
+    import matplotlib.pyplot as plt
+
+    z = 10
+    a_p = 0.5
+    n_p = 1.5
+    nm_obj = 1.339
+    nm_img = 1.0
+    NA = 1.45
+    lamb = 0.447
+    mpp = 0.135
+    M = 100
+    f = 2.*10**5
+    dim = [201,201]
+    r = f/M
+    p, q = 250, 250
+    origin = [0.5*(p-1.), 0.5*(q-1.)]
+    obj_factor = 2*NA/nm_obj
+    obj_scale = [obj_factor*1./p, obj_factor*1./q]
+
+    s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
+    
+    ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
+    sx = s_obj_cart.xx.ravel()
+    sy = s_obj_cart.yy.ravel()
+
+    inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
+
+    sx *= r*NA/nm_obj
+    sy *= r*NA/nm_obj
+
+    ang_spec = np.zeros([3, p*q], dtype = complex)
+    ang_spec[:, inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, f/M, z)
+    ang_spec = ang_spec.reshape(3, p, q)
+
+    # Auxiliary Field at P2.
+    plt.plot(np.abs(ang_spec[1,:]))
+    plt.show()
+    plt.imshow(np.hstack([np.abs(ang_spec[0]), np.abs(ang_spec[1]), np.abs(ang_spec[2])]))
+    plt.title(r'ang_spec before $(r, \theta, \phi)$ at $P_2$') 
+    plt.show()
+
+def test_against_old():
+    '''Produces an image using the angular spectrum and using the old method of image formation.'''
+    pass
+
+def test_r_dependence():
+    '''Tests that the angular spectrum doesnt depend greatly on r.'''
+    pass
+
+
+if __name__ == '__main__':
+    test_lm_ang_spectrum()
