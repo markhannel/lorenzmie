@@ -19,7 +19,7 @@ def spherefield(x, y, z, a_p, n_p, n_m = complex(1.3326, 1.5e-8),
         n_p: (complex) refractive index of sphere
 
     Keywords:
-        n_m:         refractive index of medium (default water)
+        n_m:        refractive index of medium (default water)
         lamb:       vacuum wavelength of light (default 0.6328)
         mpp:        micrometers per pixel      (default 0.101)
         precision:  accuracy of scattering coefficients
@@ -31,7 +31,7 @@ def spherefield(x, y, z, a_p, n_p, n_m = complex(1.3326, 1.5e-8),
     """
     ab = sphere_coefficients(a_p, n_p, n_m, lamb)
 
-    if type(precision) != str : 
+    if precision: 
         # retain first coefficient for bookkeeping
         fac = abs(ab[:, 1])
         w = np.where(fac > precision*max(fac))
