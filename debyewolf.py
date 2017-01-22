@@ -106,19 +106,10 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
-    plt.imshow(np.hstack(map(np.real, [g_aux[i] for i in xrange(3)])))
-    plt.title('g_aux')
-    plt.show()
-
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
     for i in xrange(3):
         es_m_n[i] = np.fft.fftshift(es_m_n[i])
-
-    plt.imshow(np.hstack(map(np.abs, [es_m_n[i] for i in xrange(3)])))
-    plt.title('es_m_n')
-    plt.show()
-
 
     # Compute the electric field at plane 3.
     # Accounting for aliasing.
@@ -130,14 +121,6 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
 
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
-
-        
-    # Auxiliary Field at P2.
-    plt.imshow(np.hstack([np.abs(es_cam[0]), np.abs(es_cam[1]), np.abs(es_cam[2])]))
-    plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$') 
-    plt.show()
-
-
 
     return es_cam
 
@@ -227,10 +210,6 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r_max)
-
-    plt.imshow(np.hstack(map(np.real, [ang_spec[i] for i in xrange(3)])))
-    plt.title('ang_spec')
-    plt.show()
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
