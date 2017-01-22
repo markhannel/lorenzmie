@@ -1,5 +1,5 @@
 import numpy as np
-from lorenzmie import lm_angular_spectrum
+from sphericalfield import sphericalfield
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
 import geometry as g
@@ -67,10 +67,10 @@ def remove_r(es):
     return es
   
     
-def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
+def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r):
     '''Compute the angular spectrum arriving at the entrance pupil.'''
     
-    
+    lamb_m = lamb/nm_obj/0.135
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
@@ -79,11 +79,10 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r, z):
     sy *= r
     p, q = s_obj_cart.shape
 
-    # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]). 
-    # By default, ang_spec = 0 on all points where sx**2 + sy**2 >= (NA/nm_obj)**2
-    inds = np.where(sx**2+sy**2 < (NA/nm_obj)**2)[0]
+    # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
     ang_spec = np.zeros([3, p*q], dtype = complex)
-    ang_spec[:,inds] = lm_angular_spectrum(sx[inds], sy[inds], ab, lamb, nm_obj, r, z)
+    ang_spec = sphericalfield(sx, sy, r, ab, lamb_m, 
+                                      cartesian = False, str_factor=True)
 
     return ang_spec.reshape(3, p, q)
 
@@ -107,10 +106,19 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
+    plt.imshow(np.hstack(map(np.real, [g_aux[i] for i in xrange(3)])))
+    plt.title('g_aux')
+    plt.show()
+
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
     for i in xrange(3):
         es_m_n[i] = np.fft.fftshift(es_m_n[i])
+
+    plt.imshow(np.hstack(map(np.abs, [es_m_n[i] for i in xrange(3)])))
+    plt.title('es_m_n')
+    plt.show()
+
 
     # Compute the electric field at plane 3.
     # Accounting for aliasing.
@@ -185,6 +193,7 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
 
     # Necessary constants.
     k_img = 2*np.pi*nm_img/lamb
+    r_max = 200. # [pix] 
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -217,11 +226,10 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
-    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, f/M, z)
+    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r_max)
 
-    # Auxiliary Field at P2.
-    plt.imshow(np.hstack([np.real(ang_spec[0]), np.real(ang_spec[1]), np.real(ang_spec[2])]))
-    plt.title(r'ang_spec before $(r, \theta, \phi)$ at $P_2$') 
+    plt.imshow(np.hstack(map(np.real, [ang_spec[i] for i in xrange(3)])))
+    plt.title('ang_spec')
     plt.show()
 
     # 2) Collection.
@@ -229,8 +237,8 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA)
 
     # 3) Refocus.
-    # Input the electric field strength into the debye-wolf formalism to compute the 
-    # scattered field at the camera plane.
+    # Input the electric field strength into the debye-wolf formalism to 
+    # compute the scattered field at the camera plane.
     es_cam = refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
     # 4) Image formation.
@@ -256,8 +264,8 @@ def test_debye():
 
     # Necessary parameters.
     z = 10.
-    a_p = 1.0
-    n_p = 1.4
+    a_p = 0.5
+    n_p = 1.5
 
     # Produce image with Debye-Wolf Formalism.
     deb_image = debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, 

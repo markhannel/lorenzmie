@@ -37,7 +37,7 @@ def spheredhm(rp, a_p, n_p, n_m, dim, mpp = 0.135, lamb = .447, alpha = False,
     x -= float(nx)/2. + float(rp[0])
     y -= float(ny)/2. + float(rp[1])
 
-    if lut == 'lut':
+    if lut:
         rho = np.sqrt(x**2 + y**2)
         x = np.arange(np.fix(rho).max()+1)
         y = 0. * x
@@ -46,7 +46,6 @@ def spheredhm(rp, a_p, n_p, n_m, dim, mpp = 0.135, lamb = .447, alpha = False,
 
     field = spherefield(x, y, zp, a_p, n_p, n_m = n_m, cartesian = True, mpp = mpp, 
                         lamb = lamb, precision = precision)
-    
     if alpha: 
         field *= alpha
     
@@ -54,10 +53,10 @@ def spheredhm(rp, a_p, n_p, n_m, dim, mpp = 0.135, lamb = .447, alpha = False,
     
     # Compute the sum of the incident and scattered fields, then square.
     field *= np.exp(np.complex(0.,-k*zp))
-    field[:,0] += 1.0
-    image = np.sum(np.real(field*np.conj(field)), axis = 1)
+    field[0,:] += 1.0
+    image = np.sum(np.real(field*np.conj(field)), axis = 0)
 
-    if lut == True: 
+    if lut: 
         image = np.interpolate(image, rho, cubic=-0.5)
 
     return image.reshape(int(ny), int(nx))

@@ -22,11 +22,13 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
         ab: [2,nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
         lamb: wavelength of light in medium [pixels]
-    Keywords:
 
+    Keywords:
         cartesian: if True, field is expressed as (x,yz) else (r, theta, phi)
+        str_factor: if True, returned field is the electric field strength 
+            factor
     Returns:
-        field: [3,npts] scattered electric field
+        field: [3,npts] scattered electric field or field strength factor
     """
 
     # Check that inputs are numpy arrays
@@ -65,7 +67,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     cosphi   = np.cos(phi)
     sinphi   = np.sin(phi)
 
-    kr = k*r                        # reduced radial coordinate
+    kr = k*r # reduced radial coordinate
 
     # starting points for recursive function evaluation ...
     # ... Riccati-Bessel radial functions, page 478
@@ -196,18 +198,18 @@ def test_angular_spectrum():
 
     # Compute the angular spectrum.
     lamb_m = lamb/np.real(nm_obj)/mpp # medium wavelength [pixel]
-    z_p = 100./mpp
+    z_p = 100
     low_ang_spec = sphericalfield(sx, sy, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     low_ang_spec = low_ang_spec.reshape(3, ny, nx)
-    low_ang_spec = np.hstack(low_ang_spec[1:3, :, :])
-    z_p = 400./mpp
-    mid_ang_spec = sphericalfield(sx, sy, z_p, ab, lamb_m, cartesian = False, str_factor = True)
+    low_ang_spec = np.hstack(low_ang_spec[0:3, :, :])
+    z_p *= 10
+    mid_ang_spec = sphericalfield(sx*10, sy*10, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     mid_ang_spec = mid_ang_spec.reshape(3, ny, nx)
-    mid_ang_spec = np.hstack(mid_ang_spec[1:3, :, :])
-    z_p = 2000./mpp
-    high_ang_spec = sphericalfield(sx, sy, z_p, ab, lamb_m, cartesian = False, str_factor = True)
+    mid_ang_spec = np.hstack(mid_ang_spec[0:3, :, :])
+    z_p *= 10
+    high_ang_spec = sphericalfield(sx*100, sy*100, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     high_ang_spec = high_ang_spec.reshape(3, ny, nx)
-    high_ang_spec = np.hstack(high_ang_spec[1:3, :, :])
+    high_ang_spec = np.hstack(high_ang_spec[0:3, :, :])
 
     # Plot results.
     ang_stack = np.vstack([low_ang_spec, mid_ang_spec, high_ang_spec])
