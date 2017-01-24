@@ -48,7 +48,7 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
 
     field = spherefield(x, y, zp, ap, np, nm = nm, cartesian = True, mpp = mpp, 
                         lamb = lamb, precision = precision)
-    
+
     if alpha: 
         field *= alpha
     
@@ -56,9 +56,10 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
     
     # Compute the sum of the incident and scattered fields, then square.
     field *= nmp.exp(nmp.complex(0.,-k*zp))
+
     field[:,0] += 1.0
     image = nmp.sum(nmp.real(field*nmp.conj(field)), axis = 1)
-
+    print 'spheredhm max', nmp.max(image)
     if lut == True: 
         image = nmp.interpolate(image, rho, cubic=-0.5)
 

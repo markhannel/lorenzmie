@@ -244,12 +244,16 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     '''
 
     # Necessary constants.
+    k_obj = 2 * np.pi * nm_obj / lamb
     k_img = 2 * np.pi * nm_img / lamb
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    pad_q *= 10.
+    pad_p *= 10.
     Np = pad_p + p
     Nq = pad_q + q
+    print 'Np, Nq', Np, Nq
 
     # Compute the three geometries, s_img, s_obj, n_img
     # Origins for the coordinate systems.
@@ -264,7 +268,7 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     # Cartesian Geometries.
     # FIXME (MDH): is it necessary to have s_obj_cart?
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
-    s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
+    s_obj_cart = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)], obj_scale)
     n_disc_grid = g.CartesianCoordinates(Np, Nq)
     n_img_cart = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)], img_scale)
 
@@ -272,18 +276,61 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     sph_img = g.SphericalCoordinates(s_img_cart)
     sph_n_img = g.SphericalCoordinates(n_img_cart)
 
+    sph_obj = g.SphericalCoordinates(s_obj_cart)
+
     # 0) Propagate the Incident field to the camera plane.
     # FIXME: Implement separately from image_formation.
 
     # 1) Scattering.
-    # Compute the angular spectrum incident on plane 1.
-    es_obj = scatter_ang_spectrum(s_obj_cart, a_p, n_p, nm_obj, lamb)
+    # Compute the angular spectrum
+    # This is in terms of sx, sy
+    angular_spectrum = scatter_ang_spectrum(s_obj_cart, a_p, n_p, nm_obj, lamb)
 
-    # TODO: Propagate in z, then convert from angular spectrum to electric field.
+    # Compute the displaced angular spectrum
+    sx, sy = s_obj_cart.xx, s_obj_cart.yy
+    displace_phase = z * k_obj * np.sqrt(1 - sx ** 2 - sy ** 2)
+    angular_spectrum_z = angular_spectrum * np.exp(complex(0, 1) * displace_phase)
 
-    print es_obj
+    # Cut off any evanescent waves
+    unit_rho_sq = sx ** 2 + sy ** 2
+    angular_spectrum_z[:, unit_rho_sq > .5] = 0
 
-    return es_obj
+    # Convert to cartesian
+    angular_spectrum_z = g.spherical_to_cartesian(angular_spectrum_z, sph_obj)
+
+    image = angular_spectrum_z
+    plt.imshow(np.abs(np.hstack([image[0], image[1], image[2]])))
+    print 'angular spectrum z abs'
+    plt.gray()
+    plt.show()
+
+    image = angular_spectrum_z
+    plt.imshow(np.angle(np.hstack([image[0], image[1], image[2]])))
+    print 'angular spectrum z angle'
+    plt.gray()
+    plt.show()
+
+    # Convert from angular spectrum to electric field
+    # Following Eq. 43 of Capoglu
+    # Fix
+    electric_field = np.fft.ifft2(angular_spectrum_z) * k_obj ** 2
+    # TODO: ifftshift or fftshift?
+    electric_field[0] = np.fft.ifftshift(electric_field[0])
+    electric_field[1] = np.fft.ifftshift(electric_field[1])
+    electric_field[2] = np.fft.ifftshift(electric_field[2])
+
+    image = electric_field
+    plt.imshow(np.angle(np.hstack([image[0], image[1], image[2]])))
+    print 'Electric field angle'
+    plt.gray()
+    plt.show()
+
+    # image = image_formation(electric_field, sph_obj, k_obj)
+    path_len = z # FIXME (MDH): What should the path length be?
+    electric_field /= 10.
+    electric_field[0,:,:] += 1.0*np.exp(1.j*k_obj*path_len) # Plane wave normalized to amplitude 1.
+    image = np.sum(np.real(electric_field*np.conjugate(electric_field)), axis = 0)
+    return image
 
 def test_discretize():
     NA = 1.45
@@ -297,27 +344,33 @@ def test_discretize():
     print del_x/M
 
 def test_angularSpectrum():
-    z = 10.
-    a_p = 1.0
+    z = 5.
+    a_p = 0.01
     n_p = 1.4
-    image = focalPlaneField(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45,
+    mpp = 0.135
+    image = focalPlaneField(z, a_p, n_p, lamb = 0.447, mpp = mpp, dim = [401,401], NA = 1.45,
               nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = False)
-    print image
-    print image.shape
-    imageDHM = spheredhm([0, 0 , z], a_p, n_p, 1.339, [201, 201], mpp=0.135, lamb=0.447)
+    print 'Image focal plane field', image
+    print 'Image focal plane field shape', image.shape
+    print 'Image max', np.max(image)
+    print 'Image max norm', np.max(image/((np.pi * 2) ** 2))
+    print 'Image min', np.min(image)
+    imageDHM = spheredhm([0, 0 , z / mpp], a_p, n_p, 1.339, [401, 401], mpp=0.135, lamb=0.447)
     import matplotlib.pyplot as plt
-    plt.imshow(np.abs(np.hstack([image[0], image[1], image[2]])))
+    plt.imshow(np.abs(image))
+    print 'Electric field abs'
     plt.gray()
     plt.savefig('angularFocalPlane_ps_1.0.png')
     plt.show()
 
     plt.imshow(imageDHM)
+    print 'sphereDHM'
     plt.gray()
     plt.savefig('sphereDHM_ps_1.0.png')
     plt.show()
 
 def test_debye():
-    z = 10.
+    z = .1
     a_p = 1.0
     n_p = 1.4
     image = debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45, 

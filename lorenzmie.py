@@ -157,10 +157,10 @@ def lm_angular_spectrum(geom, ab, lamb, n_m):
     costheta[inds] = np.sqrt(1. - unit_rho_sq[inds])
 
     Es = lm_electric_strength_factor(geom, ab, lamb, n_m, r, z = 0)
-    print 'Es shape', Es.shape
     p, q = geom.shape
     Es = Es.reshape(3,p,q)
     angular_spectrum = Es * lamb / (complex(0, 1) * n_m * costheta)
+    angular_spectrum[:, unit_rho_sq > 1] = 0
 
     print 'ang spec', angular_spectrum
     print 'ang spec shape', angular_spectrum.shape

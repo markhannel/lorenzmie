@@ -48,9 +48,11 @@ class SphericalCoordinates(object):
 
         self.costheta = np.sqrt(1. - r_squared)
         self.sintheta = np.sqrt(r_squared)
+        # Make sure there are not nans
+        self.costheta[r_squared > 1] = 0
         
         self.cosphi = np.ones(r_squared.shape)
-        self.sinphi = np.ones(r_squared.shape)
+        self.sinphi = np.zeros(r_squared.shape)
 
         self.cosphi[inds] = xx[inds]/self.sintheta[inds]
         self.sinphi[inds] = yy[inds]/self.sintheta[inds]
