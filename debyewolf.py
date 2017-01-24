@@ -20,12 +20,23 @@ def aperture(field, x, y, r_max):
     field[:,indices] = 0
     return field
 
+def displacement(sx, sy, z, lamb):
+    '''Returns the displacement phase accumulated by a angular spectrum propagating
+    a distance z. 
+    
+    Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
+            [See 3.10.2 Propagation of the Angular Spectrum]
+
+    FIXME: WHICH LAMBDA? In medium or in air?
+    '''
+    return np.exp(1.0j * 2 * np.pi/lamb * z * np.sqrt( 1 - sx**2 - sy**2))
+
 def discretize_plan(NA, M, lamb, nm_img, mpp):
     '''Discretizes a plane according to Eq. 130 - 131.'''
 
     # Suppose the largest scatterer we consider is 20 lambda. Then
     # P should be larger than 40*NA.
-    diam = 200 # wavelengths
+    diam = 100 # wavelengths
     p, q = int(diam*NA), int(diam*NA)
 
     # Pad with zeros to help dealias and to set del_x to mpp.
@@ -35,29 +46,17 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     return pad_p, pad_q, p, q
     
 
-def consv_energy(es, s_obj, s_img, r_max):
+def consv_energy(es, s_obj, s_img, r_max, M):
     '''
     Changes electric field strength factor density to obey the conversation of energy. 
     See Eq. 108 of Ref. 1.
-
-    FIXME (MDH): Should spherical coordinates be done differently?
     '''
 
-    # Determine the
-    sx_obj = s_obj.xx
-    sy_obj = s_obj.yy
-    sx_img = s_img.xx
-    sy_img = s_img.yy
-    r_2 = sx_obj**2 +sy_obj**2
-    inds = np.where(r_2 <= r_max**2)
-    cos_theta_obj = np.zeros(sx_obj.shape)
-
-    # Compute the necessary cosine terms in Eq 108.
-    cos_theta_img = np.sqrt(1. - (sx_img**2+sy_img**2))
-    cos_theta_obj[inds] = np.sqrt(1. - (sx_obj[inds]**2+sy_obj[inds]**2))
+    cos_theta_obj = s_obj.costheta
+    cos_theta_img = s_img.costheta
 
     # Obey the conservation of energy and make use of the abbe-sine condition. Eq. 108. Ref. 1.
-    es[:,inds[0],inds[1]] *= np.sqrt(cos_theta_img[inds[0],inds[1]]/cos_theta_obj[inds[0],inds[1]])
+    es[:,:,:] *= -M*np.sqrt(cos_theta_img/cos_theta_obj)
 
     return es
 
@@ -65,48 +64,53 @@ def remove_r(es):
     '''Remove r component of vector.'''
     es[0,:,:] = 0.0
     return es
-  
-    
-def scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r):
+
+def propagate_plane_wave(amplitude, k, path_len, shape):
+    '''Propagates a plane with wavenumber k through a distance path_len. The wave is polarized
+    in the x direction. The field is given as a cartesian vector field.'''
+    e_inc = np.zeros(shape, dtype = complex)
+    e_inc[0,:,:] += amplitude*np.exp(1.j * k * path_len) # Plane wave normalized to amplitude 1.
+    return e_inc
+
+def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
     '''Compute the angular spectrum arriving at the entrance pupil.'''
     
-    lamb_m = lamb/nm_obj/0.135
+    p, q = s_obj_cart.shape
+
+    lamb_m = lamb/np.real(nm_obj)/mpp
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
-    
+
     sx *= r
     sy *= r
-    p, q = s_obj_cart.shape
 
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
-    ang_spec = np.zeros([3, p*q], dtype = complex)
-    ang_spec = sphericalfield(sx, sy, r, ab, lamb_m, 
-                                      cartesian = False, str_factor=True)
+    ang_spec = sphericalfield(sx, sy, r, ab, lamb_m, cartesian=False, str_factor=True)
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, NA/nm_obj)
+    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, NA/nm_obj, M)
     es_img = remove_r(es_img) # Should be no r component.
     es_img = np.nan_to_num(es_img)
 
     return es_img
 
-def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
+def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     '''Propagates the electric field from the exit pupil to the image plane.'''
         
     # Compute auxiliary (Eq. 133) with zero padding!
     # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
     g_aux = np.zeros([3, p, q], complex)
     for i in xrange(3):
-        g_aux[i, :,:] = es_img[i,:,:]/sph_img.costheta
+        g_aux[i, :,:] = es_img[i,:,:]/s_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
-    plt.imshow(np.hstack(map(np.real, [g_aux[i] for i in xrange(3)])))
+    plt.imshow(np.hstack(map(np.abs, g_aux[:])))
     plt.title('g_aux')
     plt.show()
 
@@ -123,7 +127,7 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     # Compute the electric field at plane 3.
     # Accounting for aliasing.
     es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
-    # FIXME (MDH): Should it be p*q or NpNq
+    # FIXME (MDH): Should it be p*q or Np*Nq
 
     mm = n_disc_grid.xx
     nn = n_disc_grid.yy
@@ -131,27 +135,17 @@ def refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
-        
     # Auxiliary Field at P2.
     plt.imshow(np.hstack([np.abs(es_cam[0]), np.abs(es_cam[1]), np.abs(es_cam[2])]))
     plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$') 
     plt.show()
 
-
-
     return es_cam
 
-def image_formation(es_cam, sph_n_img, k_img):
+def image_formation(es_cam, e_inc_cam):
     '''Produces an image from the electric fields present.'''
-    
-    # Convert es_cam to cartesian coords
-    es_cam_cart = g.spherical_to_cartesian(es_cam, sph_n_img)
-
-    #path_len = f + f/M
-    path_len = 0. # FIXME (MDH): What should the path length be?
-    es_cam_cart[0,:,:] += 1.0*np.exp(-1.j*k_img*path_len) # Plane wave normalized to amplitude 1.
-    
-    image = np.sum(np.real(es_cam_cart*np.conjugate(es_cam_cart)), axis = 0)
+    fields = es_cam + e_inc_cam
+    image = np.sum(np.real(fields*np.conjugate(fields)), axis = 0)
 
     return image
 
@@ -176,7 +170,7 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
         mpp:   [um/pix] sets the size of a pixel.
                Default: 0.135.
         M:     [unitless] Magnification of the optical train.
-               Default: 100
+`               Default: 100
         f:     [um]: focal length of the objective. Sets the distance between the entrance
                pupil and the focal plane.
                Default: 20E5 um.
@@ -187,13 +181,13 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
         image: [?, ?] - Currently dim is not implemented. The resulting image size is dictated
                by the padding chose for the fourier transform.
 
-    Ref[1]: Capoglu et al. (2012). "The Microscope in a Computer:...", 
-            Applied Optics, 38(34), 7085.
+    Ref[1]: Capoglu et al. (2012). "The Microscope in a Computer:...", Applied Optics, 
+            38(34), 7085.
     '''
 
     # Necessary constants.
     k_img = 2*np.pi*nm_img/lamb
-    r_max = 200. # [pix] 
+    r_max = 50. # [pix] 
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -215,35 +209,53 @@ def debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, lamb = 0.4
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
     n_disc_grid = g.CartesianCoordinates(Np, Nq)
-    n_img_cart = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
+    n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
 
     # Spherical Geometries.
-    sph_img   = g.SphericalCoordinates(s_img_cart)
-    sph_n_img = g.SphericalCoordinates(n_img_cart)
+    s_obj_cart.acquire_spherical(1)
+    s_img_cart.acquire_spherical(1)
+    n_img_cart.acquire_spherical(1)
 
     # 0) Propagate the Incident field to the camera plane.
-    # FIXME: Implement separately from image_formation.
+    e_inc = propagate_plane_wave(1.0, k_img, 0, (3, Np, Nq))
+
+    plt.imshow(np.hstack(map( np.abs, e_inc[:])))
+    plt.title('Incident Wave at Camera')
+    plt.show()
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
-    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, NA, lamb, r_max)
+    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
 
-    plt.imshow(np.hstack(map(np.real, [ang_spec[i] for i in xrange(3)])))
-    plt.title('ang_spec')
+    plt.imshow(np.hstack(map( np.abs, ang_spec[:])))
+    plt.title('After Scatter')
     plt.show()
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M)
+
+    plt.imshow(np.hstack(map( np.abs, es_img[:])))
+    plt.title('After Collection')
+    plt.show()
+
+    # 2.5) Displacement.
+    # Propagate the angular spectrum a distance z_p.
+    # disp = displacement(sx, sy, z, lamb)
 
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
     # compute the scattered field at the camera plane.
-    es_cam = refocus(es_img, sph_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
+    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
+    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
+
+    plt.imshow(np.hstack(map( np.abs, es_cam[:])))
+    plt.title('After Collection')
+    plt.show()
 
     # 4) Image formation.
     # Combine the electric fields in the image plane to form an image.
-    image = image_formation(es_cam, sph_n_img, k_img)
+    image = image_formation(es_cam, e_inc)
 
     return image
 
@@ -269,7 +281,7 @@ def test_debye():
 
     # Produce image with Debye-Wolf Formalism.
     deb_image = debyewolf(z, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, 
-                      lamb = 0.447, mpp = 0.135, M = 100, f = 20.*10**2, dim = [201,201])
+                          lamb = 0.447, mpp = 0.135, M = 100, f = 20.*10**2, dim = [201,201])
     plt.imshow(deb_image)
     plt.title('Hologram with Debye-Wolf')
     plt.gray()
@@ -277,7 +289,7 @@ def test_debye():
     
     # Produce image in the focal plane.
     dim = deb_image.shape
-    image = spheredhm([0,0,z/0.135], a_p, n_p, 1.339, dim, 0.135, 0.447)
+    image = spheredhm([0,0, z/0.135], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
     # Visually compare the two.
     plt.imshow(np.hstack([deb_image, image]))
