@@ -26,8 +26,6 @@ def displacement(sxx, syy, z, lamb):
     
     Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
             [See 3.10.2 Propagation of the Angular Spectrum]
-
-    FIXME: WHICH LAMBDA? In medium or in air?
     '''
     return np.exp(1.0j * 2 * np.pi/lamb * z * np.sqrt( 1 - sxx**2 - syy**2))
 
@@ -83,11 +81,8 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
 
-    sx *= r
-    sy *= r
-
     # Compute the electromagnetic strength factor on the object side (Eq 40 Ref[1]).
-    ang_spec = sphericalfield(sx, sy, r, ab, lamb_m, cartesian=False, str_factor=True)
+    ang_spec = sphericalfield(sx*r, sy*r, r, ab, lamb_m, cartesian=False, str_factor=True)
 
     return ang_spec.reshape(3, p, q)
 
@@ -136,7 +131,7 @@ def image_formation(es_cam, e_inc_cam):
     return image
 
 def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447, 
-              mpp=0.135, M =100, f = 2.E5, dim = [201,201]):
+              mpp=0.135, M=100, f=2.E5, dim=[201,201], quiet=True):
     '''
     Returns an image in the camera plane due to a spherical scatterer with 
     radius a_p and refractive index n_p at a height z above the focal plane. 
@@ -177,6 +172,7 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     # Necessary constants.
     k_img = 2*np.pi*nm_img/lamb
     r_max = 100. # [pix] 
+    lamb_m = lamb/(nm_obj)/mpp
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -213,18 +209,35 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
 
-    plt.imshow(np.hstack(map( np.abs, ang_spec[:])))
-    plt.title('After Scatter')
-    plt.show()
+    if quiet == False:
+        plt.imshow(np.hstack(map( np.abs, ang_spec[:])))
+        plt.title('After Scatter')
+        plt.show()
 
+    # 1.5) Displacing the field.
+    # Propagate the angular spectrum a distance z_p.
+    sxx = s_obj_cart.xx
+    syy = s_obj_cart.yy
+
+    inds = np.where(sxx**2+syy**2 <= 1.)
+    disp = np.ones([3, p, q], dtype = complex)
+    for i in xrange(1,3):
+        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, lamb_m)
+    ang_spec[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
+
+    plt.imshow(np.hstack( map( np.abs, disp[:])))
+    plt.show()
+    
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M)
 
-    plt.imshow(np.hstack(map( np.abs, es_img[:])))
-    plt.title('After Collection')
-    plt.show()
+    if quiet == False:
+        plt.imshow(np.hstack(map( np.abs, es_img[:])))
+        plt.title('After Collection')
+        plt.show()
 
+    '''
     # 2.5) Displacement.
     # Propagate the angular spectrum a distance z_p.
     # FIXME (MDH): Should displacement take place before 
@@ -232,9 +245,10 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     syy = s_img_cart.yy
     inds = np.where(sxx**2+syy**2 <= 1.)
     disp = np.ones([3, p, q], dtype = complex)
-#    for i in xrange(1,3):
-#        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, lamb)
+    for i in xrange(1,3):
+        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, lamb)
     es_img[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
+    '''
 
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
@@ -242,9 +256,10 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     es_img = g.spherical_to_cartesian(es_img, s_img_cart)
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
-    plt.imshow(np.hstack(map( np.abs, es_cam[:])))
-    plt.title('After Collection')
-    plt.show()
+    if quiet == False:
+        plt.imshow(np.hstack(map( np.abs, es_cam[:])))
+        plt.title('After Collection')
+        plt.show()
 
     # 4) Image formation.
     # Combine the electric fields in the image plane to form an image.
@@ -268,13 +283,15 @@ def test_debye():
     from spheredhm import spheredhm
 
     # Necessary parameters.
-    z = 100.
+    z = 10.
     a_p = 0.5
     n_p = 1.5
+    mpp = 0.135
 
     # Produce image with Debye-Wolf Formalism.
-    deb_image = debyewolf(z/0.135, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  NA = 1.45, 
-                          lamb = 0.447, mpp = 0.135, M = 100, f = 20.*10**2, dim = [201,201])
+    deb_image = debyewolf(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
+                          NA = 1.45, lamb = 0.447, mpp = 0.135, M = 100, 
+                          f = 20.*10**2, dim = [201,201], quiet = False)
     plt.imshow(deb_image)
     plt.title('Hologram with Debye-Wolf')
     plt.gray()
@@ -282,7 +299,7 @@ def test_debye():
     
     # Produce image in the focal plane.
     dim = deb_image.shape
-    image = spheredhm([0,0, z/0.135], a_p, n_p, 1.339, dim, 0.135, 0.447)
+    image = spheredhm([0,0, z/mpp], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
     # Visually compare the two.
     plt.imshow(np.hstack([deb_image, image]))
@@ -291,5 +308,4 @@ def test_debye():
     plt.show()
 
 if __name__ == '__main__':
-    test_discretize()
     test_debye()
