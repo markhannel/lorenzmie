@@ -111,19 +111,10 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         g_aux[i, :,:] = es_img[i,:,:]/s_img.costheta
         #g_aux *= np.exp(-1.j*k_img*aber)
 
-    plt.imshow(np.hstack(map(np.abs, g_aux[:])))
-    plt.title('g_aux')
-    plt.show()
-
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
     for i in xrange(3):
         es_m_n[i] = np.fft.fftshift(es_m_n[i])
-
-    plt.imshow(np.hstack(map(np.abs, [es_m_n[i] for i in xrange(3)])))
-    plt.title('es_m_n')
-    plt.show()
-
 
     # Compute the electric field at plane 3.
     # Accounting for aliasing.
@@ -135,11 +126,6 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
 
     for i in xrange(3):
         es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
-
-    # Auxiliary Field at P2.
-    plt.imshow(np.hstack(map(np.abs, [es_cam[i] for i in xrange(3)])))
-    plt.title(r'es_cam $(r, \theta, \phi)$ at $P_2$') 
-    plt.show()
 
     return es_cam
 
@@ -190,7 +176,7 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
 
     # Necessary constants.
     k_img = 2*np.pi*nm_img/lamb
-    r_max = 75. # [pix] 
+    r_max = 100. # [pix] 
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -212,19 +198,16 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
     n_disc_grid = g.CartesianCoordinates(Np, Nq)
-    n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], img_scale)
+    n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], 
+                                         img_scale)
 
     # Spherical Geometries.
-    s_obj_cart.acquire_spherical(1)
-    s_img_cart.acquire_spherical(1)
-    n_img_cart.acquire_spherical(1)
+    s_obj_cart.acquire_spherical(1.)
+    s_img_cart.acquire_spherical(1.)
+    n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
     e_inc = propagate_plane_wave(1.0, k_img, 0, (3, Np, Nq))
-
-    plt.imshow(np.hstack(map( np.abs, e_inc[:])))
-    plt.title('Incident Wave at Camera')
-    plt.show()
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
@@ -249,8 +232,8 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     syy = s_img_cart.yy
     inds = np.where(sxx**2+syy**2 <= 1.)
     disp = np.ones([3, p, q], dtype = complex)
-    for i in xrange(1,3):
-        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], -z, lamb)
+#    for i in xrange(1,3):
+#        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, lamb)
     es_img[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
 
     # 3) Refocus.
@@ -275,7 +258,7 @@ def test_discretize():
     lamb = 0.447
     nm_img = 1.0
     mpp = 0.135
-    pad_p, pad_q, p, q, sx, sy = discretize_plan(NA, M, lamb, nm_img, mpp)
+    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
     
     del_x = lamb*p*M/(2*NA*(pad_p+p))
     print del_x/M
@@ -308,4 +291,5 @@ def test_debye():
     plt.show()
 
 if __name__ == '__main__':
+    test_discretize()
     test_debye()
