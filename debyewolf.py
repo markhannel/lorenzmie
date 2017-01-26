@@ -223,7 +223,7 @@ def debyewolf(z, a_p, n_p, lamb = 0.447, mpp = 0.135, dim = [201,201], NA = 1.45
 
 
 def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
-              nm_obj=1.339, nm_img=1.0, M=100, f=20. * 10 ** 5, quiet=True):
+              nm_obj=1.339, nm_img=1.0, M=100):
     '''
     Colculate field at focal plane with angular spectrum.
 
@@ -239,6 +239,7 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
                Default: 0.135.
 
     Return:
+        image, mpp, lamb
 
     Ref[1]: Capoglu et al. (2012). "The Microscope in a Computer:...",
             Applied Optics, 38(34), 7085.
@@ -249,12 +250,11 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     k_img = 2 * np.pi * nm_img / lamb
 
     # Devise a discretization plan.
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    pad_q *= 10.
-    pad_p *= 10.
+    # FIXME (DBR): make discretize_plan for the focal plane based on mpp and dim
+    pad_p, pad_q, p, q = 500, 500, 800, 800
+    # pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
     Np = pad_p + p
     Nq = pad_q + q
-    print 'Np, Nq', Np, Nq
 
     # Compute the three geometries, s_img, s_obj, n_img
     # Origins for the coordinate systems.
@@ -267,17 +267,8 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     obj_scale = [obj_factor * 1. / p, obj_factor * 1. / q]
 
     # Cartesian Geometries.
-    # FIXME (MDH): is it necessary to have s_obj_cart?
-    s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)], obj_scale)
-    n_disc_grid = g.CartesianCoordinates(Np, Nq)
-    n_img_cart = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)], img_scale)
-
-    # Spherical Geometries.
-    sph_img = g.SphericalCoordinates(s_img_cart)
-    sph_n_img = g.SphericalCoordinates(n_img_cart)
-
-    sph_obj = g.SphericalCoordinates(s_obj_cart)
+    s_obj_cart_nopad = g.CartesianCoordinates(p, q, origin, obj_scale)
 
     # 0) Propagate the Incident field to the camera plane.
     # FIXME: Implement separately from image_formation.
@@ -290,53 +281,50 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     # Compute the displaced angular spectrum
     sx, sy = s_obj_cart.xx, s_obj_cart.yy
     displace_phase = z * k_obj * np.sqrt(1 - sx ** 2 - sy ** 2)
-    angular_spectrum_z = angular_spectrum * np.exp(complex(0, 1) * displace_phase)
+    angular_spectrum_z = angular_spectrum * np.exp(1.j * displace_phase)
 
     # Cut off any evanescent waves
     unit_rho_sq = sx ** 2 + sy ** 2
-    angular_spectrum_z[:, unit_rho_sq > .5] = 0
+    angular_spectrum_z[:, unit_rho_sq > .9] = 0
 
     # Convert to cartesian
+    sph_obj = g.SphericalCoordinates(s_obj_cart)
     angular_spectrum_z = g.spherical_to_cartesian(angular_spectrum_z, sph_obj)
-    #
-    # angular_spectrum_z[0] = 1. * np.exp(complex(0, 1) * displace_phase)
-    # angular_spectrum_z[1] = 0.
-    # angular_spectrum_z[2] = 0.
-    # angular_spectrum_z[:, unit_rho_sq > .5] = 0
-
-    image = angular_spectrum_z
-    plt.imshow(np.abs(np.hstack([image[0], image[1], image[2]])))
-    print 'angular spectrum z abs'
-    plt.gray()
-    plt.show()
-
-    image = angular_spectrum_z
-    plt.imshow(np.angle(np.hstack([image[0], image[1], image[2]])))
-    print 'angular spectrum z angle'
-    plt.gray()
-    plt.show()
 
     # Convert from angular spectrum to electric field
     # Following Eq. 43 of Capoglu
     # Fix
-    electric_field = np.fft.fft2(angular_spectrum_z) * k_obj ** 2
+    electric_field_raw = np.fft.ifft2(angular_spectrum_z) * obj_scale[0] * obj_scale[1] / (np.pi * 2)
     # TODO: ifftshift or fftshift?
-    electric_field[0] = np.fft.fftshift(electric_field[0])
-    electric_field[1] = np.fft.fftshift(electric_field[1])
-    electric_field[2] = np.fft.fftshift(electric_field[2])
+    electric_field_raw[0] = np.fft.fftshift(electric_field_raw[0])
+    electric_field_raw[1] = np.fft.fftshift(electric_field_raw[1])
+    electric_field_raw[2] = np.fft.fftshift(electric_field_raw[2])
 
-    image = electric_field
-    plt.imshow(np.angle(np.hstack([image[0], image[1], image[2]])))
-    print 'Electric field angle'
-    plt.gray()
-    plt.show()
+    # Dealias
+    indices = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)], [1, 1])
+    sx0 = s_obj_cart.xx[0, 0]
+    sy0 = s_obj_cart.xx[0, 0]
+    alias_phase = - 1.j * 2 * np.pi * (sx0 * indices.xx / (obj_scale[0] * Np) + sy0 * indices.yy / (obj_scale[1] * Nq))
+    #alias_phase[(indices.xx < 0) & (indices.yy > 0)] += 1.j * np.pi
+    #alias_phase[(indices.xx > 0) & (indices.yy < 0)] += 1.j * np.pi
 
-    # image = image_formation(electric_field, sph_obj, k_obj)
-    path_len = z # FIXME (MDH): What should the path length be?
-    #electric_field /= 10.
-    #electric_field[0,:,:] += 1.0*np.exp(1.j*k_obj*path_len) # Plane wave normalized to amplitude 1.
-    #image = np.sum(np.real(electric_field*np.conjugate(electric_field)), axis = 0)
-    return np.abs(np.hstack([image[0], image[1], image[2]]))
+    electric_field = np.copy(electric_field_raw)
+    for i in xrange(3):
+        correctionFactor = 1.j * k_obj * np.exp(alias_phase) * obj_scale[0] * obj_scale[1] / (np.pi * 2)
+        electric_field[i, :, :] = correctionFactor * electric_field_raw[i, :, :]
+
+    # Cut off padding
+    electric_field = electric_field[:, pad_p / 2:-pad_p / 2, pad_q / 2:-pad_q / 2]
+
+    # Image formation
+    path_len = 0  # FIXME (MDH): What should the path length be?
+    electric_field[0, :, :] += 1.0 * np.exp(1.j * k_obj * path_len)  # Plane wave normalized to amplitude 1.
+    image = np.sum(np.real(electric_field * np.conjugate(electric_field)), axis=0)
+
+    # Calculate mpp
+    mpp = lamb / (obj_scale[0] * Np * nm_obj)
+
+    return image, mpp, lamb
 
 def test_discretize():
     NA = 1.45
@@ -350,29 +338,32 @@ def test_discretize():
     print del_x/M
 
 def test_angularSpectrum():
+    # Input parameters
     z = 50.
-    a_p = 1.001
+    a_p = .501
     n_p = 1.4
-    mpp = 0.135
-    image = focalPlaneField(z, a_p, n_p, lamb = 0.447, mpp = mpp, dim = [401,401], NA = 1.45,
-              nm_obj = 1.339, nm_img = 1.0, M = 100, f = 20.*10**5, quiet = False)
-    print 'Image focal plane field', image
-    print 'Image focal plane field shape', image.shape
-    print 'Image max', np.max(image)
-    print 'Image max norm', np.max(image/((np.pi * 2) ** 2))
-    print 'Image min', np.min(image)
-    imageDHM = spheredhm([0, 0 , z / mpp], a_p, n_p, 1.339, [401, 401], mpp=0.135, lamb=0.447)
-    import matplotlib.pyplot as plt
-    plt.imshow(np.abs(image))
-    print 'Electric field abs'
-    plt.gray()
-    plt.savefig('angularFocalPlane_ps_1.0.png')
-    plt.show()
 
-    plt.imshow(imageDHM)
-    print 'sphereDHM'
+    # Calculate focal plane holgram using angular spectrum
+    image, mpp, lamb = focalPlaneField(z, a_p, n_p, lamb = 0.447, mpp = None, dim = None, NA = 1.45,
+              nm_obj = 1.339, nm_img = 1.0, M = 100)
+    cropLength = 250
+    image = image[cropLength:-cropLength, cropLength:-cropLength] - 1.
+
+    # Calculate using conventional spheredhm
+    imageDHM = spheredhm([0, 0 , z / mpp], a_p, n_p, 1.339, [300, 300], mpp=mpp, lamb=0.447) - 1
+
+    # Scale angular spectrum result to match spheredhm
+    # FIXME (DBR): What is the theoretical factor?
+    image *= np.max(imageDHM)/np.max(image)
+
+    # Plot results
+    print 'Image from angular spectrum on left'
+    print 'Image from sphereDHM on right'
+    import matplotlib.pyplot as plt
+    plt.imshow(np.hstack([image, imageDHM]))
     plt.gray()
-    plt.savefig('sphereDHM_ps_1.0.png')
+    plt.colorbar()
+    #plt.savefig('sphereDHM_ps_1.0.png')
     plt.show()
 
 def test_debye():
