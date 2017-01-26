@@ -162,6 +162,4 @@ def lm_angular_spectrum(geom, ab, lamb, n_m):
     angular_spectrum = Es * lamb / (complex(0, 1) * n_m * costheta)
     angular_spectrum[:, unit_rho_sq > 1] = 0
 
-    print 'ang spec', angular_spectrum
-    print 'ang spec shape', angular_spectrum.shape
     return angular_spectrum

@@ -33,7 +33,8 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     diam = 200 # wavelengths
     p, q = int(diam*NA), int(diam*NA)
 
-    # Pad with zeros to help dealias and to set del_x to mpp.
+    # Pad with zeros to help de
+    # alias and to set del_x to mpp.
     pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
@@ -297,6 +298,11 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
 
     # Convert to cartesian
     angular_spectrum_z = g.spherical_to_cartesian(angular_spectrum_z, sph_obj)
+    #
+    # angular_spectrum_z[0] = 1. * np.exp(complex(0, 1) * displace_phase)
+    # angular_spectrum_z[1] = 0.
+    # angular_spectrum_z[2] = 0.
+    # angular_spectrum_z[:, unit_rho_sq > .5] = 0
 
     image = angular_spectrum_z
     plt.imshow(np.abs(np.hstack([image[0], image[1], image[2]])))
@@ -313,11 +319,11 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
     # Convert from angular spectrum to electric field
     # Following Eq. 43 of Capoglu
     # Fix
-    electric_field = np.fft.ifft2(angular_spectrum_z) * k_obj ** 2
+    electric_field = np.fft.fft2(angular_spectrum_z) * k_obj ** 2
     # TODO: ifftshift or fftshift?
-    electric_field[0] = np.fft.ifftshift(electric_field[0])
-    electric_field[1] = np.fft.ifftshift(electric_field[1])
-    electric_field[2] = np.fft.ifftshift(electric_field[2])
+    electric_field[0] = np.fft.fftshift(electric_field[0])
+    electric_field[1] = np.fft.fftshift(electric_field[1])
+    electric_field[2] = np.fft.fftshift(electric_field[2])
 
     image = electric_field
     plt.imshow(np.angle(np.hstack([image[0], image[1], image[2]])))
@@ -327,10 +333,10 @@ def focalPlaneField(z, a_p, n_p, lamb=0.447, mpp=0.135, dim=[201, 201], NA=1.45,
 
     # image = image_formation(electric_field, sph_obj, k_obj)
     path_len = z # FIXME (MDH): What should the path length be?
-    electric_field /= 10.
-    electric_field[0,:,:] += 1.0*np.exp(1.j*k_obj*path_len) # Plane wave normalized to amplitude 1.
-    image = np.sum(np.real(electric_field*np.conjugate(electric_field)), axis = 0)
-    return image
+    #electric_field /= 10.
+    #electric_field[0,:,:] += 1.0*np.exp(1.j*k_obj*path_len) # Plane wave normalized to amplitude 1.
+    #image = np.sum(np.real(electric_field*np.conjugate(electric_field)), axis = 0)
+    return np.abs(np.hstack([image[0], image[1], image[2]]))
 
 def test_discretize():
     NA = 1.45
@@ -344,8 +350,8 @@ def test_discretize():
     print del_x/M
 
 def test_angularSpectrum():
-    z = 5.
-    a_p = 0.01
+    z = 50.
+    a_p = 1.001
     n_p = 1.4
     mpp = 0.135
     image = focalPlaneField(z, a_p, n_p, lamb = 0.447, mpp = mpp, dim = [401,401], NA = 1.45,
