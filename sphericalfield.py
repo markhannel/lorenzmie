@@ -190,9 +190,6 @@ def test_angular_spectrum():
     sx -= float(nx)/2.
     sy -= float(ny)/2.
 
-
-    print sy[100:110]
-
     # Compute sphere coefficients.
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
 
@@ -201,17 +198,17 @@ def test_angular_spectrum():
     z_p = 100.
     low_ang_spec = sphericalfield(sx, sy, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     low_ang_spec = low_ang_spec.reshape(3, ny, nx)
-    low_ang_spec = np.hstack(map(np.real, low_ang_spec[0:3, :, :]))
+    low_ang_spec = np.hstack(map(np.abs, low_ang_spec[0:3, :, :]))
 
     z_p *= 10
     mid_ang_spec = sphericalfield(sx*10, sy*10, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     mid_ang_spec = mid_ang_spec.reshape(3, ny, nx)
-    mid_ang_spec = np.hstack(map(np.real, mid_ang_spec[0:3, :, :]))
+    mid_ang_spec = np.hstack(map(np.abs, mid_ang_spec[0:3, :, :]))
 
     z_p *= 1000
     high_ang_spec = sphericalfield(sx*10000, sy*10000, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     high_ang_spec = high_ang_spec.reshape(3, ny, nx)
-    high_ang_spec = np.hstack(map(np.real, high_ang_spec[0:3, :, :]))
+    high_ang_spec = np.hstack(map(np.abs, high_ang_spec[0:3, :, :]))
 
     # Plot results.
     ang_stack = np.vstack([low_ang_spec, mid_ang_spec, high_ang_spec])
