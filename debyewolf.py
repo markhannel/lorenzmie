@@ -21,7 +21,7 @@ def aperture(field, x, y, r_max):
     return field
 
 def displacement(sxx, syy, z, k):
-    '''Returns the displacement phase accumulated by a angular spectrum 
+    '''Returns the displacement phase accumulated by an angular spectrum
     propagating a distance z. 
     
     Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
@@ -224,13 +224,13 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     sxx = s_obj_cart.xx
     syy = s_obj_cart.yy
 
-    inds = np.where(sxx**2+syy**2 <= 1.)
-    disp = np.ones([3, p, q], dtype = complex)
+    inside = sxx**2+syy**2 <= 1.
+    disp = displacement(sxx, syy, z, k_obj)
+    disp[~inside] = 1
     for i in xrange(1,3):
-        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, k_obj)
-    ang_spec[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
+        ang_spec[i, inside] *= disp[inside]
 
-    plt.imshow(np.hstack( map( np.real, disp[:])))
+    plt.imshow(map( np.real, disp))
     plt.title(r'Displacement field')
     plt.show()
 
