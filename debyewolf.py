@@ -105,10 +105,8 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         
     # Compute auxiliary (Eq. 133) with zero padding!
     # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = np.zeros([3, p, q], complex)
-    for i in xrange(3):
-        g_aux[i, :,:] = es_img[i,:,:]/s_img.costheta
-        #g_aux *= np.exp(-1.j*k_img*aber)
+    g_aux = es_img / s_img.costheta # The lower dimensional s_img.costheta broadcasts to es_img.
+    # g_aux *= np.exp(-1.j*k_img*aber)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
@@ -117,15 +115,12 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         es_m_n[i] = np.fft.fftshift(es_m_n[i])
 
     # Compute the electric field at plane 3.
+    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n
+
     # Accounting for aliasing.
-    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
-    # FIXME (MDH): Should it be p*q or Np*Nq
-
-    mm = n_disc_grid.xx
-    nn = n_disc_grid.yy
-
-    for i in xrange(3):
-        es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
+    mm, nn = n_disc_grid.xx, n_disc_grid.yy
+        # FIXME (MDH): Should it be p*q or Np*Nq
+    es_cam *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     return es_cam
 
