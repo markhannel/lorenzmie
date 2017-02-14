@@ -135,8 +135,9 @@ def image_formation(es_cam, e_inc_cam):
     image = np.sum(np.real(fields*np.conjugate(fields)), axis = 0)
     return image
 
-def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447, 
-              mpp=0.135, M=100, f=2.E5, dim=[201,201], quiet=True):
+def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, 
+                       lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201], 
+                       quiet=True):
     '''
     Returns an image in the camera plane due to a spherical scatterer with 
     radius a_p and refractive index n_p at a height z above the focal plane. 
@@ -283,7 +284,7 @@ def test_discretize():
     del_x = lamb*p*M/(2*NA*(pad_p+p))
     print del_x/M
 
-def test_debye():
+def test_image():
     import matplotlib.pyplot as plt
     from spheredhm import spheredhm
 
@@ -294,23 +295,20 @@ def test_debye():
     mpp = 0.135
 
     # Produce image with Debye-Wolf Formalism.
-    deb_image = debyewolf(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
-                          NA = 1.45, lamb = 0.447, mpp = 0.135, M = 100, 
-                          f = 20.*10**2, dim = [201,201], quiet = False)
-    plt.imshow(deb_image)
-    plt.title(r'Hologram with Debye-Wolf')
-    plt.gray()
-    plt.show()
-    
+    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, 
+                                   nm_img = 1.0,  NA = 1.45, lamb = 0.447, 
+                                   mpp = 0.135, M = 100, f = 20.*10**2, 
+                                   dim = [201,201], quiet = True)
+
     # Produce image in the focal plane.
-    dim = deb_image.shape
+    dim = cam_image.shape
     image = spheredhm([0,0, z/mpp], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
     # Visually compare the two.
-    plt.imshow(np.hstack([deb_image, image]))
-    plt.title(r'Comparing Debye-Wolf Hologram to Spheredhm Hologram')
+    plt.imshow(np.hstack([cam_image, image]))
+    plt.title(r'Comparing Camera Plane Image to Focal Plane Image')
     plt.gray()
     plt.show()
 
 if __name__ == '__main__':
-    test_debye()
+    test_image()
