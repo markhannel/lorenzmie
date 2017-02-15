@@ -44,21 +44,11 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     return pad_p, pad_q, p, q
     
 
-def consv_energy(es, s_obj, s_img, r_max, M):
-    '''
-    Changes electric field strength factor density to obey the conversation of 
+def consv_energy(es, s_obj, s_img, M):
+    '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-
-    cos_theta_obj = s_obj.costheta
-    cos_theta_img = s_img.costheta
-
-    # Obey the conservation of energy and make use of the abbe-sine condition. Eq. 108. Ref. 1.
-    # FIXME (MDH): You did not magnify by M. Is it really the case that
-    # the incident field and the scattered field are similarly magnified
-    es[:,:,:] *= -np.sqrt(M*cos_theta_img/cos_theta_obj)
-
-    return es
+    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -91,14 +81,17 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, NA/nm_obj, M)
+    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, M)
     es_img = remove_r(es_img) # Should be no r component.
     es_img = np.nan_to_num(es_img)
 
+    # Apply aperture. FIXME (MDH): implement.
+    #es_img = aperture(es_img, x, y, r_max)
+    
     return es_img
 
 def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
@@ -131,8 +124,9 @@ def image_formation(es_cam, e_inc_cam):
     image = np.sum(np.real(fields*np.conjugate(fields)), axis = 0)
     return image
 
-def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447, 
-              mpp=0.135, M=100, f=2.E5, dim=[201,201], quiet=True):
+def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, 
+                       lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201], 
+                       quiet=True):
     '''
     Returns an image in the camera plane due to a spherical scatterer with 
     radius a_p and refractive index n_p at a height z above the focal plane. 
@@ -204,7 +198,7 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(1.0, k_img, 0, (3, Np, Nq))
+    e_inc = propagate_plane_wave(1.0, k_obj, z, (3, Np, Nq))
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
@@ -233,7 +227,7 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
 
     if not quiet:
         plt.imshow(np.hstack(map( np.abs, es_img[:])))
@@ -255,6 +249,7 @@ def debyewolf(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, lamb=0.447,
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
     # compute the scattered field at the camera plane.
+
     es_img = g.spherical_to_cartesian(es_img, s_img_cart)
     if quiet == False:
         plt.imshow(np.hstack(map( np.abs, es_img[:])))
@@ -284,7 +279,7 @@ def test_discretize():
     del_x = lamb*p*M/(2*NA*(pad_p+p))
     print del_x/M
 
-def test_debye(z=10.0, quiet=False):
+def test_image(z=10.0, quiet=False):
     import matplotlib.pyplot as plt
     from spheredhm import spheredhm
 
@@ -294,21 +289,17 @@ def test_debye(z=10.0, quiet=False):
     mpp = 0.135
 
     # Produce image with Debye-Wolf Formalism.
-    deb_image = debyewolf(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
+    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
                           NA = 1.45, lamb = 0.447, mpp = 0.135, M = 100, 
                           f = 20.*10**2, dim = [201,201], quiet = quiet)
-    # plt.imshow(deb_image)
-    # plt.title(r'Hologram with Debye-Wolf')
-    # plt.gray()
-    # plt.show()
-    
+
     # Produce image in the focal plane.
-    dim = deb_image.shape
+    dim = cam_image.shape
     image = spheredhm([0,0, z/mpp], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
     # Visually compare the two.
-    plt.imshow(np.hstack([deb_image, image]))
-    plt.title(r'Comparing Debye-Wolf Hologram to Spheredhm Hologram')
+    plt.imshow(np.hstack([cam_image, image]))
+    plt.title(r'Comparing Camera Plane Image to Focal Plane Image')
     plt.gray()
     plt.show()
 
@@ -319,4 +310,4 @@ if __name__ == '__main__':
     parser.add_argument('--quiet', action='store_true', help='If set only plot last figure.')
     parser.add_argument('-z', type=float, help='Height of test particle.', default=10.0)
     args = parser.parse_args()
-    test_debye(z=args.z, quiet=args.quiet)
+    test_image(z=args.z, quiet=args.quiet)
