@@ -3,16 +3,15 @@ import matplotlib.pyplot as plt
 import geometry as g
 from debyewolf import image_formation, collection, refocus
 
-def fict_ang_spec(obj_geom, img_geom, p, q):
+def fict_ang_spec(obj_geom, img_geom, M, p, q):
     '''Returns convenient fictitious angular spectrum for testing purposes.'''
     # Geometrical factors.
     costheta_obj = obj_geom.costheta
-    costheta_img = obj_geom.costheta
+    costheta_img = img_geom.costheta
 
-    print costheta_img
     # Produce angular spectrum.
     ang_spec = np.zeros([3, p, q], dtype = complex)
-    ang_spec[1:, :] += np.sqrt(costheta_obj*costheta_img) # r-component is zero.
+    ang_spec[1:, :] += 1./M*np.sqrt(costheta_obj*costheta_img) # r-component is zero.
 
     return ang_spec
 
@@ -21,7 +20,7 @@ def image_focal_plane(ang_spec, geom, z, k):
     # Propagate scattered field to the focal plane (z away).
     r = None
     e_field = ang_spec*np.exp(1.j*k*r)/r
-    e_field = g.spherical_to_cartesian(e_field, geom)
+    #e_field = g.spherical_to_cartesian(e_field, geom)
 
     # Propagate incident field to the focal plane (z away).
     e_inc = 1.0*np.exp(1.j*k*z)
@@ -32,14 +31,14 @@ def image_camera_plane(ang_spec, s_obj_cart, s_img_cart, n_disc_grid, p, q, Np, 
                        nm_obj, NA, M, lamb):
     '''Produces an image of the fictitious scatter in the camera plane.'''
 
-    ### Propagate the scattered field to the camera plane
+    ### Propagate the scattered field to the camera plane.
     # Conservation of energy between ent and exit pupil.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M)
-    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
-
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
+    #es_img = g.spherical_to_cartesian(es_img, s_img_cart)
+    
     # Propagate from the exit pupil to the camera plane (Debye-Wolf).
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
-
+    
     return es_cam
 
 def test_fic_ang_spec():
@@ -76,13 +75,18 @@ def test_fic_ang_spec():
     s_img_cart.acquire_spherical(1.)
     s_obj_cart.acquire_spherical(1.)
     
-    # Propagate the angular spectrum to the camera plane.
-    ang_spec = fict_ang_spec(s_obj_cart, s_img_cart, p, q)
-    image = image_camera_plane(ang_spec, s_obj_cart, s_img_cart, n_disc_grid, p, q, Np, Nq, 
-                       nm_obj, NA, M, lamb)
+    # Compute angular spectrum.
+    ang_spec = fict_ang_spec(s_obj_cart, s_img_cart, M, p, q)
 
     # View Angular Spectrum
     plt.imshow(np.hstack(map(np.abs, ang_spec[:])))
+    plt.show()
+
+    # Propagate the field to the camera plane.
+    image = image_camera_plane(ang_spec, s_obj_cart, s_img_cart, n_disc_grid, p, q, Np, Nq, 
+                       nm_obj, NA, M, lamb)
+
+    plt.imshow(np.hstack(map(np.real, image)))
     plt.show()
 
 if __name__ == '__main__':
