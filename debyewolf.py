@@ -44,21 +44,11 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     return pad_p, pad_q, p, q
     
 
-def consv_energy(es, s_obj, s_img, r_max, M):
-    '''
-    Changes electric field strength factor density to obey the conversation of 
+def consv_energy(es, s_obj, s_img, M):
+    '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-
-    cos_theta_obj = s_obj.costheta
-    cos_theta_img = s_img.costheta
-
-    # Obey the conservation of energy and make use of the abbe-sine condition. Eq. 108. Ref. 1.
-    # FIXME (MDH): You did not magnify by M. Is it really the case that
-    # the incident field and the scattered field are similarly magnified
-    es[:,:,:] *= -np.sqrt(M*cos_theta_img/cos_theta_obj)
-
-    return es
+    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -90,14 +80,17 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, NA/nm_obj, M)
+    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, M)
     es_img = remove_r(es_img) # Should be no r component.
     es_img = np.nan_to_num(es_img)
 
+    # Apply aperture. FIXME (MDH): implement.
+    #es_img = aperture(es_img, x, y, r_max)
+    
     return es_img
 
 def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
@@ -209,7 +202,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(1.0, k_img, 0, (3, Np, Nq))
+    e_inc = propagate_plane_wave(1.0, k_obj, z, (3, Np, Nq))
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
@@ -237,7 +230,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, NA, M)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
 
     if quiet == False:
         plt.imshow(np.hstack(map( np.abs, es_img[:])))
@@ -259,7 +252,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
     # compute the scattered field at the camera plane.
-    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
+    es_img = g.spherical_to_cartesian(es_img, s_img_cart) # FIXME: Is this the correct geom. What about z?
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
     if quiet == False:
@@ -298,7 +291,7 @@ def test_image():
     cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, 
                                    nm_img = 1.0,  NA = 1.45, lamb = 0.447, 
                                    mpp = 0.135, M = 100, f = 20.*10**2, 
-                                   dim = [201,201], quiet = True)
+                                   dim = [201,201], quiet = False)
 
     # Produce image in the focal plane.
     dim = cam_image.shape
