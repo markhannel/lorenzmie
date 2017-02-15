@@ -21,7 +21,7 @@ def aperture(field, x, y, r_max):
     return field
 
 def displacement(sxx, syy, z, k):
-    '''Returns the displacement phase accumulated by a angular spectrum 
+    '''Returns the displacement phase accumulated by an angular spectrum
     propagating a distance z. 
     
     Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
@@ -72,10 +72,11 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
+    costheta = np.sqrt(1 - sx**2 - sy**2)
 
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
-    ang_spec = sphericalfield(sx*r, sy*r, r, ab, lamb_m, cartesian=False, 
+    ang_spec = sphericalfield(sx*r, sy*r, costheta*r, ab, lamb_m, cartesian=False,
                               str_factor=True)
 
     return ang_spec.reshape(3, p, q)
@@ -98,10 +99,8 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         
     # Compute auxiliary (Eq. 133) with zero padding!
     # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = np.zeros([3, p, q], complex)
-    for i in xrange(3):
-        g_aux[i, :,:] = es_img[i,:,:]/s_img.costheta
-        #g_aux *= np.exp(-1.j*k_img*aber)
+    g_aux = es_img / s_img.costheta # The lower dimensional s_img.costheta broadcasts to es_img.
+    # g_aux *= np.exp(-1.j*k_img*aber)
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
@@ -110,15 +109,12 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
         es_m_n[i] = np.fft.fftshift(es_m_n[i])
 
     # Compute the electric field at plane 3.
+    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n
+
     # Accounting for aliasing.
-    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n 
-    # FIXME (MDH): Should it be p*q or Np*Nq
-
-    mm = n_disc_grid.xx
-    nn = n_disc_grid.yy
-
-    for i in xrange(3):
-        es_cam[i,:,:] *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
+    mm, nn = n_disc_grid.xx, n_disc_grid.yy
+        # FIXME (MDH): Should it be p*q or Np*Nq
+    es_cam *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     return es_cam
 
@@ -208,7 +204,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
 
-    if quiet == False:
+    if not quiet:
         plt.imshow(np.hstack(map( np.abs, ang_spec[:])))
         plt.title(r'After Scatter $(r,\theta,\phi)$')
         plt.show()
@@ -218,21 +214,22 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     sxx = s_obj_cart.xx
     syy = s_obj_cart.yy
 
-    inds = np.where(sxx**2+syy**2 <= 1.)
-    disp = np.ones([3, p, q], dtype = complex)
+    inside = sxx**2+syy**2 <= 1.
+    disp = displacement(sxx, syy, z, k_obj)
+    disp[~inside] = 1
     for i in xrange(1,3):
-        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, k_obj)
-    ang_spec[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
+        ang_spec[i, inside] *= disp[inside]
 
-    plt.imshow(np.hstack( map( np.real, disp[:])))
-    plt.title(r'Displacement field')
-    plt.show()
+    if not quiet:
+        plt.imshow(map( np.real, disp))
+        plt.title(r'Displacement field')
+        plt.show()
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
 
-    if quiet == False:
+    if not quiet:
         plt.imshow(np.hstack(map( np.abs, es_img[:])))
         plt.title(r'After Collection ($r$, $\theta$, $\phi$)')
         plt.show()
@@ -252,7 +249,12 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
     # compute the scattered field at the camera plane.
-    es_img = g.spherical_to_cartesian(es_img, s_img_cart) # FIXME: Is this the correct geom. What about z?
+
+    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
+    if quiet == False:
+        plt.imshow(np.hstack(map( np.abs, es_img[:])))
+        plt.title(r'Before Refocusing $(x, y, z)$')
+        plt.show()
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
     if quiet == False:
@@ -277,21 +279,19 @@ def test_discretize():
     del_x = lamb*p*M/(2*NA*(pad_p+p))
     print del_x/M
 
-def test_image():
+def test_image(z=10.0, quiet=False):
     import matplotlib.pyplot as plt
     from spheredhm import spheredhm
 
     # Necessary parameters.
-    z = 10.
     a_p = 0.5
     n_p = 1.5
     mpp = 0.135
 
     # Produce image with Debye-Wolf Formalism.
-    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, 
-                                   nm_img = 1.0,  NA = 1.45, lamb = 0.447, 
-                                   mpp = 0.135, M = 100, f = 20.*10**2, 
-                                   dim = [201,201], quiet = False)
+    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
+                          NA = 1.45, lamb = 0.447, mpp = 0.135, M = 100, 
+                          f = 20.*10**2, dim = [201,201], quiet = quiet)
 
     # Produce image in the focal plane.
     dim = cam_image.shape
@@ -304,4 +304,10 @@ def test_image():
     plt.show()
 
 if __name__ == '__main__':
-    test_image()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--quiet', action='store_true', help='If set only plot last figure.')
+    parser.add_argument('-z', type=float, help='Height of test particle.', default=10.0)
+    args = parser.parse_args()
+    test_image(z=args.z, quiet=args.quiet)
