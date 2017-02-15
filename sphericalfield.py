@@ -18,28 +18,29 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
         y: [npts] array of pixel coordinates [pixels]
         z: If field is required in a single plane, then
             z is the plane's distance from the sphere's center
-            [pixels].
-        ab: [2,nc] array of a and b scattering coefficients, where
+            [pixels]. Otherwise it is an [npts] array of pixel coordinates [pixels]
+        ab: [2, nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
         lamb: wavelength of light in medium [pixels]
 
     Keywords:
-        cartesian: if True, field is expressed as (x,yz) else (r, theta, phi)
+        cartesian: if True, field is expressed as (x, y, z) else (r, theta, phi)
         str_factor: if True, returned field is the electric field strength 
             factor
     Returns:
-        field: [3,npts] scattered electric field or field strength factor
+        field: [3, npts] scattered electric field or field strength factor
     """
 
     # Check that inputs are numpy arrays
     for var, char_var in zip([x,y,ab], ['x', 'y', 'ab']):
-        if check_if_numpy(var, char_var) == False:
+        if not check_if_numpy(var, char_var):
             print 'x, y and ab must be numpy arrays'
             return None
 
-    if type(z) != int and type(z) != float and type(z) != np.float64:
-        print 'z must be a float or int'
-        return None
+    if not check_if_numpy(z, 'z'):
+        if type(z) != int and type(z) != float and type(z) != np.float64:
+            print 'z must be a float or int'
+            return None
 
     z = np.array(z)
     # Check the inputs are the right size
@@ -138,19 +139,20 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     # geometric factors were divided out of the vector
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
-    Es[0, :] *= cosphi * sintheta / kr**2
-    Es[1, :] *= cosphi / kr
-    Es[2, :] *= sinphi / kr
-
-    # Compute the electric field strength factor by removing r-dependence.
     if str_factor:
-        Es *= np.exp(1.0j*kr)*r 
+        # Compute the electric field strength factor by removing r-dependence.
+        radialFactor = np.exp(1.0j*kr) / k
+    else:
+        radialFactor = 1 / kr
+    Es[0, :] *= cosphi * sintheta * radialFactor / kr
+    Es[1, :] *= cosphi * radialFactor
+    Es[2, :] *= sinphi * radialFactor
 
     # By default, the scattered wave is returned in spherical
     # coordinates.  Project components onto Cartesian coordinates.
     # Assumes that the incident wave propagates along z and 
     # is linearly polarized along x
-    if cartesian == True:
+    if cartesian:
         Ec = np.zeros([3, npts],complex)
         Ec += Es
 
@@ -181,11 +183,8 @@ def test_angular_spectrum():
     lamb = 0.447
     a_p = 0.5 
     n_p = 1.5
-    nm_obj = complex(1.3326, 1.5E-8)
+    nm_obj = 1.3326
     nm_img = 1.000
-    r = 100.
-    
-    k = 2.0*np.pi/(lamb/np.real(nm_obj)/mpp)
 
     # Make a cartesian grid of points in the focal plane.
     sx = np.tile(np.arange(nx, dtype = float), ny)
@@ -198,23 +197,25 @@ def test_angular_spectrum():
 
     # Compute the angular spectrum.
     lamb_m = lamb/np.real(nm_obj)/mpp # medium wavelength [pixel]
-    z_p = 100
+    z_p = 100.
     low_ang_spec = sphericalfield(sx, sy, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     low_ang_spec = low_ang_spec.reshape(3, ny, nx)
-    low_ang_spec = np.hstack(low_ang_spec[0:3, :, :])
+    low_ang_spec = np.hstack(map(np.abs, low_ang_spec[0:3, :, :]))
+
     z_p *= 10
     mid_ang_spec = sphericalfield(sx*10, sy*10, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     mid_ang_spec = mid_ang_spec.reshape(3, ny, nx)
-    mid_ang_spec = np.hstack(mid_ang_spec[0:3, :, :])
-    z_p *= 10
-    high_ang_spec = sphericalfield(sx*100, sy*100, z_p, ab, lamb_m, cartesian = False, str_factor = True)
+    mid_ang_spec = np.hstack(map(np.abs, mid_ang_spec[0:3, :, :]))
+
+    z_p *= 1000
+    high_ang_spec = sphericalfield(sx*10000, sy*10000, z_p, ab, lamb_m, cartesian = False, str_factor = True)
     high_ang_spec = high_ang_spec.reshape(3, ny, nx)
-    high_ang_spec = np.hstack(high_ang_spec[0:3, :, :])
+    high_ang_spec = np.hstack(map(np.abs, high_ang_spec[0:3, :, :]))
 
     # Plot results.
     ang_stack = np.vstack([low_ang_spec, mid_ang_spec, high_ang_spec])
-    ang_stack = np.abs(ang_stack)
-    plt.imshow(ang_stack)
+    #ang_stack = np.abs(ang_stack)
+    plt.imshow(ang_stack, interpolation = None)
     plt.title('Angular Spectrum at small, medium and large r')
     plt.show()
 
