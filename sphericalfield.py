@@ -18,7 +18,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
         y: [npts] array of pixel coordinates [pixels]
         z: If field is required in a single plane, then
             z is the plane's distance from the sphere's center
-            [pixels].
+            [pixels]. Otherwise it is an [npts] array of pixel coordinates [pixels]
         ab: [2, nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
         lamb: wavelength of light in medium [pixels]
@@ -33,13 +33,14 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
 
     # Check that inputs are numpy arrays
     for var, char_var in zip([x,y,ab], ['x', 'y', 'ab']):
-        if check_if_numpy(var, char_var) == False:
+        if not check_if_numpy(var, char_var):
             print 'x, y and ab must be numpy arrays'
             return None
 
-    if type(z) != int and type(z) != float and type(z) != np.float64:
-        print 'z must be a float or int'
-        return None
+    if not check_if_numpy(z, 'z'):
+        if type(z) != int and type(z) != float and type(z) != np.float64:
+            print 'z must be a float or int'
+            return None
 
     z = np.array(z)
     # Check the inputs are the right size
@@ -138,13 +139,14 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     # geometric factors were divided out of the vector
     # spherical harmonics for accuracy and efficiency ...
     # ... put them back at the end.
-    Es[0, :] *= cosphi * sintheta / kr**2
-    Es[1, :] *= cosphi / kr
-    Es[2, :] *= sinphi / kr
-
-    # Compute the electric field strength factor by removing r-dependence.
     if str_factor:
-        Es *= np.exp(1.0j*kr)*r 
+        # Compute the electric field strength factor by removing r-dependence.
+        radialFactor = np.exp(1.0j*kr) / k
+    else:
+        radialFactor = 1 / kr
+    Es[0, :] *= cosphi * sintheta * radialFactor / kr
+    Es[1, :] *= cosphi * radialFactor
+    Es[2, :] *= sinphi * radialFactor
 
     # By default, the scattered wave is returned in spherical
     # coordinates.  Project components onto Cartesian coordinates.
