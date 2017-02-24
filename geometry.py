@@ -114,10 +114,10 @@ def test_spherical():
     
     # Parameters
     nm_obj = 1.339
-    nm_img = 1.0 
+    nm_img = 1.339 
     NA = 1.45 
     mpp = 0.135 
-    M = 100 
+    M = 1.
 
     # Arbitrary size of image
     p, q = 20, 20
@@ -144,8 +144,8 @@ def test_spherical():
     # Plot the cartesian quantities
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
-    ax.scatter(s_img_cart.xx.ravel(), s_img_cart.yy.ravel(), color = 'b')
-    ax.scatter(s_obj_cart.xx.ravel(), s_obj_cart.yy.ravel(), color = 'r')
+    ax.scatter(s_img_cart.xx.ravel(), s_img_cart.yy.ravel(), color = 'r')
+    ax.scatter(s_obj_cart.xx.ravel(), s_obj_cart.yy.ravel(), color = 'b')
     plt.show()
 
     # Plot the spherical quantities

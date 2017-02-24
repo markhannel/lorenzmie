@@ -14,9 +14,7 @@ def check_if_numpy(x, char_x):
 
 def aperture(field, x, y, r_max):
     '''Sets field to zero wherever x**2+y**2 >= rmax.'''
-    r_2 = x**2+y**2
-    indices = np.where(r_2 >= r_max**2)
-
+    indices = np.where(x**2+y**2 >= r_max**2)
     field[:,indices] = 0
     return field
 
@@ -48,7 +46,8 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    return es*-1.*np.sqrt(M*s_img.costheta/s_obj.costheta)
+
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -60,7 +59,7 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     The wave is polarized in the x direction. The field is given as a 
     cartesian vector field.'''
     e_inc = np.zeros(shape, dtype = complex)
-    e_inc[0,:,:] += amplitude*np.exp(1.j * k * path_len)
+    e_inc[0,:,:] += amplitude*np.exp(-1.j * k * path_len)
     return e_inc
 
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
@@ -98,8 +97,10 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     '''Propagates the electric field from the exit pupil to the image plane.'''
         
     # Compute auxiliary (Eq. 133) with zero padding!
-    # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) # As a function of sx_img, sy_img
-    g_aux = es_img / s_img.costheta # The lower dimensional s_img.costheta broadcasts to es_img.
+    # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) 
+    # As a function of sx_img, sy_img
+    g_aux = es_img / s_img.costheta 
+    # The lower dimensional s_img.costheta broadcasts to es_img.
     # g_aux *= np.exp(-1.j*k_img*aber)
 
     # Apply discrete Fourier Transform (Eq. 135).
@@ -198,7 +199,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(1.0, k_obj, z, (3, Np, Nq))
+    e_inc = propagate_plane_wave(-1.0, k_obj, z, (3, Np, Nq))
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
@@ -219,11 +220,6 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     disp[~inside] = 1
     for i in xrange(1,3):
         ang_spec[i, inside] *= disp[inside]
-
-    if not quiet:
-        plt.imshow(map( np.real, disp))
-        plt.title(r'Displacement field')
-        plt.show()
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
@@ -255,6 +251,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
         plt.imshow(np.hstack(map( np.abs, es_img[:])))
         plt.title(r'Before Refocusing $(x, y, z)$')
         plt.show()
+
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
     if quiet == False:
@@ -287,15 +284,23 @@ def test_image(z=10.0, quiet=False):
     a_p = 0.5
     n_p = 1.5
     mpp = 0.135
+    NA = 1.45
+    lamb = 0.447
+    f = 20.*10**2
+    dim = [201,201] # FIXME: Does nothing.
+    nm_obj = 1.339
+    nm_img = 1.339
+    M = 1
 
     # Produce image with Debye-Wolf Formalism.
-    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj = 1.339, nm_img = 1.0,  
-                          NA = 1.45, lamb = 0.447, mpp = 0.135, M = 100, 
-                          f = 20.*10**2, dim = [201,201], quiet = quiet)
+    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj=nm_obj, 
+                                   nm_img=nm_img,  NA=NA, lamb=lamb, 
+                                   mpp=mpp, M=M, f=f, dim=dim, 
+                                   quiet=quiet)
 
     # Produce image in the focal plane.
     dim = cam_image.shape
-    image = spheredhm([0,0, z/mpp], a_p, n_p, 1.339, dim, 0.135, 0.447)
+    image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
     plt.imshow(np.hstack([cam_image, image]))
