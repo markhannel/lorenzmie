@@ -15,7 +15,7 @@ def check_if_numpy(x, char_x):
 def aperture(field, x, y, r_max):
     '''Sets field to zero wherever x**2+y**2 >= rmax.'''
     indices = np.where(x**2+y**2 >= r_max**2)
-    field[:,indices] = 0
+    field[:, indices] = 0
     return field
 
 def displacement(sxx, syy, z, k):
@@ -75,8 +75,8 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
-    ang_spec = sphericalfield(sx*r, sy*r, costheta*r, ab, lamb_m, cartesian=False,
-                              str_factor=True)
+    ang_spec = sphericalfield(sx*r, sy*r, costheta*r, ab, lamb_m, 
+                              cartesian=False, str_factor=True)
 
     return ang_spec.reshape(3, p, q)
 
@@ -105,16 +105,15 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
-
-    for i in xrange(3):
-        es_m_n[i] = np.fft.fftshift(es_m_n[i])
+    es_m_n = np.fft.fftshift(es_m_n, axes = (1,2))
 
     # Compute the electric field at plane 3.
     es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
-        # FIXME (MDH): Should it be p*q or Np*Nq
+    
+    # FIXME (MDH): Should it be p*q or Np*Nq
     es_cam *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     return es_cam
@@ -218,8 +217,9 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     inside = sxx**2+syy**2 <= 1.
     disp = displacement(sxx, syy, z, k_obj)
     disp[~inside] = 1
-    for i in xrange(1,3):
-        ang_spec[i, inside] *= disp[inside]
+    ang_spec[1:, :] *= disp
+    # FIXME (MDH): would ang_spec[1:,inside] *= disp[inside] be faster than 
+    #  setting disp[~inside] = 1 and evaluating ang_spec[1:, :] *= disp?
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
@@ -289,8 +289,8 @@ def test_image(z=10.0, quiet=False):
     f = 20.*10**2
     dim = [201,201] # FIXME: Does nothing.
     nm_obj = 1.339
-    nm_img = 1.339
-    M = 1
+    nm_img = 1.0
+    M = 100
 
     # Produce image with Debye-Wolf Formalism.
     cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj=nm_obj, 
