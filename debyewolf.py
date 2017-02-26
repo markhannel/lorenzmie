@@ -4,6 +4,10 @@ from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
 import geometry as g
 
+
+def map_abs(data):
+    return np.hstack(map( np.abs, data[:]))
+
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
     if type(x) != np.ndarray:
@@ -11,6 +15,13 @@ def check_if_numpy(x, char_x):
         return False
     else:
         return True
+
+def verbose(data, title, gray = False):
+    plt.imshow(data)
+    plt.title(title)
+    if gray:
+        plt.gray()
+    plt.show()
 
 def aperture(field, x, y, r_max):
     '''Sets field to zero wherever x**2+y**2 >= rmax.'''
@@ -205,9 +216,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
 
     if not quiet:
-        plt.imshow(np.hstack(map( np.abs, ang_spec[:])))
-        plt.title(r'After Scatter $(r,\theta,\phi)$')
-        plt.show()
+        verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
     # 1.5) Displacing the field.
     # Propagate the angular spectrum a distance z_p.
@@ -226,38 +235,20 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
 
     if not quiet:
-        plt.imshow(np.hstack(map( np.abs, es_img[:])))
-        plt.title(r'After Collection ($r$, $\theta$, $\phi$)')
-        plt.show()
+        verbose(map_abs(es_img), r'After Collection ($r$, $\theta$, $\phi$)')
 
-    '''
-    # 2.5) Displacement.
-    # Propagate the angular spectrum a distance z_p.
-    # FIXME (MDH): Should displacement take place before 
-    sxx = s_img_cart.xx
-    syy = s_img_cart.yy
-    inds = np.where(sxx**2+syy**2 <= 1.)
-    disp = np.ones([3, p, q], dtype = complex)
-    for i in xrange(1,3):
-        disp[i, inds[0], inds[1]] = displacement(sxx[inds[0], inds[1]], syy[inds[0], inds[1]], z, lamb)
-    es_img[:, inds[0], inds[1]] *= disp[:, inds[0], inds[1]]
-    '''
     # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to 
     # compute the scattered field at the camera plane.
-
     es_img = g.spherical_to_cartesian(es_img, s_img_cart)
-    if quiet == False:
-        plt.imshow(np.hstack(map( np.abs, es_img[:])))
-        plt.title(r'Before Refocusing $(x, y, z)$')
-        plt.show()
+
+    if not quiet:
+        verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
 
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
 
-    if quiet == False:
-        plt.imshow(np.hstack(map( np.abs, es_cam[:])))
-        plt.title(r'After Refocusing $(x, y, z)$')
-        plt.show()
+    if not quiet:
+        verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
 
     # 4) Image formation.
     # Combine the electric fields in the image plane to form an image.
@@ -303,10 +294,10 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    plt.imshow(np.hstack([cam_image, image]))
-    plt.title(r'Comparing Camera Plane Image to Focal Plane Image')
-    plt.gray()
-    plt.show()
+    if not quiet:
+        verbose(np.hstack([cam_image, image]), 
+                r'Comparing Camera Plane Image to Focal Plane Image', 
+                gray=True)
 
 if __name__ == '__main__':
     import argparse
