@@ -6,7 +6,7 @@ import geometry as g
 
 
 def map_abs(data):
-    return np.hstack(map( np.abs, data[:]))
+    return np.hstack(map(np.abs, data[:]))
 
 def check_if_numpy(x, char_x):
     ''' checks if x is a numpy array '''
@@ -57,7 +57,7 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-1.*np.sqrt(M*s_img.costheta/s_obj.costheta)
+    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
 
 
 def remove_r(es):
@@ -104,7 +104,7 @@ def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M):
     
     return es_img
 
-def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
+def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img):
     '''Propagates the electric field from the exit pupil to the image plane.'''
         
     # Compute auxiliary (Eq. 133) with zero padding!
@@ -119,7 +119,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb):
     es_m_n = np.fft.fftshift(es_m_n, axes = (1,2))
 
     # Compute the electric field at plane 3.
-    es_cam  = (1.j*NA**2/(M*lamb))*(4./(p*q))*es_m_n
+    es_cam  = (1.j*NA**2/(M**2*lamb*nm_img))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
@@ -245,7 +245,8 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     if not quiet:
         verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
 
-    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb)
+    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
+                     nm_img)
 
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
