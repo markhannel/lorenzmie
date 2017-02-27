@@ -39,6 +39,7 @@ def displacement(s_obj_cart, z, k):
 
     sxx = s_obj_cart.xx
     syy = s_obj_cart.yy
+
     inside = sxx**2+syy**2 < 1.
     disp = np.zeros(sxx.shape, dtype = complex)
     disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
@@ -88,12 +89,17 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
-    costheta = np.sqrt(1 - sx**2 - sy**2)
+    inds = sx**2+sy**2 < 1.
+
+    costheta = np.zeros(sx.shape)
+    costheta[inds] = np.sqrt(1. - sx[inds]**2 - sy[inds]**2)
 
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
-    ang_spec = sphericalfield(sx*r, sy*r, costheta*r, ab, lamb_m, 
-                              cartesian=False, str_factor=True)
+    ang_spec = np.zeros((3,p*q), dtype = complex)
+    ang_spec[:,inds] = sphericalfield(sx[inds]*r, sy[inds]*r, costheta[inds]*r, 
+                                      ab, lamb_m, cartesian=False, 
+                                      str_factor=True)
 
     return ang_spec.reshape(3, p, q)
 
@@ -218,7 +224,6 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
-
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 

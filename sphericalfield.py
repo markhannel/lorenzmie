@@ -39,7 +39,6 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
             return None
 
     type_z = type(z)
-    print type_z
     if type_z != np.ndarray and type_z != int and type_z != float:
         print 'z must be a float, int or numpy array.'
         return None
