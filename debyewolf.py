@@ -66,7 +66,6 @@ def consv_energy(es, s_obj, s_img, M):
     '''
     return es*-1.*np.sqrt(M*s_img.costheta/s_obj.costheta)
 
-
 def remove_r(es):
     '''Remove r component of vector.'''
     es[0,:,:] = 0.0
@@ -124,9 +123,8 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
         aber  = np.zeros([3, p, q], complex) 
 
     # Compute auxiliary (Eq. 133) with zero padding!
-    g_aux = es_img * np.exp(-1.j*2*np.pi*aber/lamb) / s_img.costheta 
     # The lower dimensional s_img.costheta broadcasts to es_img.
-    # g_aux *= np.exp(-1.j*k_img*aber)
+    g_aux = es_img * np.exp(-1.j*2*np.pi*aber/lamb) / s_img.costheta 
 
     # Apply discrete Fourier Transform (Eq. 135).
     es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
@@ -211,7 +209,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # FIXME (MDH): is it necessary to have s_obj_cart?
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
-    n_disc_grid = g.CartesianCoordinates(Np, Nq)
+    n_disc_grid = g.CartesianCoordinates(Np, Nq, origin=[.5*(Np-1), .5*(Nq-1.)])
     n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], 
                                          img_scale)
 
@@ -222,6 +220,8 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # 0) Propagate the Incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0/M, k_obj, z, (3, Np, Nq))
+    if not quiet:
+        verbose(map_abs(e_inc), r'Plane wave at image $(x,y,z)$')
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
