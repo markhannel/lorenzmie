@@ -77,11 +77,12 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     coskr = np.cos(kr)
 
     '''
-    Particles above the focal plane create diverging waves described by Eq. (4.13) for
-    $h_n^{(1)}(kr)$. These have z > 0. Those below the focal plane appear to be 
-    converging from the perspective of the camera. They are descrinbed by Eq. (4.14) 
-    for $h_n^{(2)}(kr)$, and have z < 0. We can select the appropriate case by applying
-    the correct sign of the imaginary part of the starting functions...
+    Particles above the focal plane create diverging waves described by 
+    Eq. (4.13) for $h_n^{(1)}(kr)$. These have z > 0. Those below the focal 
+    plane appear to be converging from the perspective of the camera. They are 
+    descrinbed by Eq. (4.14) for $h_n^{(2)}(kr)$, and have z < 0. We can select 
+    the appropriate case by applying the correct sign of the imaginary part of 
+    the starting functions...
     '''
     xi_nm2 = coskr + np.sign(z)*1.j*sinkr # \xi_{-1}(kr) 
     xi_nm1 = sinkr - np.sign(z)*1.j*coskr # \xi_0(kr)    
