@@ -28,7 +28,7 @@ def aperture(field, geom, r_max):
     x = geom.xx
     y = geom.yy
     indices = np.where(x**2+y**2 >= r_max**2)
-    field[:, indices[0],indices[1]] = 0
+    field[:, indices[0], indices[1]] = 0
 
     return field
 
@@ -53,7 +53,7 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
     # Suppose the largest scatterer we consider is 20 lambda. Then
     # P should be larger than 40*NA.
-    diam = 200 # wavelengths
+    diam = 400 # wavelengths
     p, q = int(diam*NA), int(diam*NA)
 
     # Pad with zeros to help dealias and to set del_x to mpp.
@@ -78,7 +78,7 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     The wave is polarized in the x direction. The field is given as a 
     cartesian vector field.'''
     e_inc = np.zeros(shape, dtype = complex)
-    e_inc[0,:,:] += amplitude*np.exp(-1.j * k * path_len)
+    e_inc[0, :, :] += amplitude*np.exp(-1.j * k * path_len)
     return e_inc
 
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
@@ -259,7 +259,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
                      nm_img)
-
+    print('average of es_cam: {}'.format(np.max(image_formation(es_cam, es_cam))))
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
 
@@ -307,9 +307,12 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    verbose(np.hstack([M**2*cam_image, image]), 
-            r'Comparing Camera Plane Image to Focal Plane Image', 
+    diff = M**2*cam_image - image
+    print("Maximum difference: {}".format(np.max(diff)))
+    verbose(np.hstack([M**2*cam_image, image, diff+1]), 
+            r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
+
 
 if __name__ == '__main__':
     import argparse
