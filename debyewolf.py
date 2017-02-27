@@ -116,13 +116,15 @@ def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M):
     
     return es_img
 
-def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img):
+def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
+            aber=None):
     '''Propagates the electric field from the exit pupil to the image plane.'''
-        
+    
+    if aber is None:
+        aber  = np.zeros([3, p, q], complex) 
+
     # Compute auxiliary (Eq. 133) with zero padding!
-    # FIXME (FUTURE): aber  = np.zeros([3, Np, Nq], complex) 
-    # As a function of sx_img, sy_img
-    g_aux = es_img / s_img.costheta 
+    g_aux = es_img * np.exp(-1.j*2*np.pi*aber/lamb) / s_img.costheta 
     # The lower dimensional s_img.costheta broadcasts to es_img.
     # g_aux *= np.exp(-1.j*k_img*aber)
 
