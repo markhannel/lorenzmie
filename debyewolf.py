@@ -39,9 +39,7 @@ def displacement(s_obj_cart, z, k):
 
     sxx = s_obj_cart.xx
     syy = s_obj_cart.yy
-
     inside = sxx**2+syy**2 < 1.
-    print np.max(sxx[inside]**2+syy[inside]**2)
     disp = np.zeros(sxx.shape, dtype = complex)
     disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
     return disp
