@@ -29,14 +29,22 @@ def aperture(field, x, y, r_max):
     field[:, indices] = 0
     return field
 
-def displacement(sxx, syy, z, k):
+def displacement(s_obj_cart, z, k):
     '''Returns the displacement phase accumulated by an angular spectrum
     propagating a distance z. 
     
     Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
             [See 3.10.2 Propagation of the Angular Spectrum]
     '''
-    return np.exp(1.0j * k * z * np.sqrt( 1. - sxx**2 - syy**2))
+
+    sxx = s_obj_cart.xx
+    syy = s_obj_cart.yy
+
+    inside = sxx**2+syy**2 < 1.
+    print np.max(sxx[inside]**2+syy[inside]**2)
+    disp = np.zeros(sxx.shape, dtype = complex)
+    disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
+    return disp
 
 def discretize_plan(NA, M, lamb, nm_img, mpp):
     '''Discretizes a plane according to Eq. 130 - 131.'''
@@ -57,7 +65,7 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    return es*-1.*np.sqrt(M*s_img.costheta/s_obj.costheta)
 
 
 def remove_r(es):
@@ -123,8 +131,6 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img):
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
-    
-    # FIXME (MDH): Should it be p*q or Np*Nq
     es_cam *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
 
     return es_cam
@@ -176,7 +182,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     '''
 
     # Necessary constants.
-    k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
+    #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2*np.pi*nm_obj/lamb*mpp # [pix**-1]
     r_max = 100. # [pix] 
 
@@ -209,7 +215,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(-1.0, k_obj, z, (3, Np, Nq))
+    e_inc = propagate_plane_wave(-1.0/M, k_obj, z, (3, Np, Nq))
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
@@ -220,15 +226,11 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # 1.5) Displacing the field.
     # Propagate the angular spectrum a distance z_p.
-    sxx = s_obj_cart.xx
-    syy = s_obj_cart.yy
-
-    inside = sxx**2+syy**2 <= 1.
-    disp = displacement(sxx, syy, z, k_obj)
-    disp[~inside] = 1
+    disp = displacement(s_obj_cart, z, k_obj)
     ang_spec[1:, :] *= disp
-    # FIXME (MDH): would ang_spec[1:,inside] *= disp[inside] be faster than 
-    #  setting disp[~inside] = 1 and evaluating ang_spec[1:, :] *= disp?
+
+    if not quiet:
+        verbose(np.real(disp), r'Displacement Field')
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
@@ -296,7 +298,7 @@ def test_image(z=10.0, quiet=False):
 
     # Visually compare the two.
     if not quiet:
-        verbose(np.hstack([cam_image, image]), 
+        verbose(np.hstack([M**2*cam_image, image]), 
                 r'Comparing Camera Plane Image to Focal Plane Image', 
                 gray=True)
 
