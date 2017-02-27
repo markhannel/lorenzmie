@@ -23,10 +23,13 @@ def verbose(data, title, gray = False):
         plt.gray()
     plt.show()
 
-def aperture(field, x, y, r_max):
+def aperture(field, geom, r_max):
     '''Sets field to zero wherever x**2+y**2 >= rmax.'''
+    x = geom.xx
+    y = geom.yy
     indices = np.where(x**2+y**2 >= r_max**2)
-    field[:, indices] = 0
+    field[:, indices[0],indices[1]] = 0
+
     return field
 
 def displacement(s_obj_cart, z, k):
@@ -58,7 +61,6 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
     return pad_p, pad_q, p, q
-    
 
 def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
@@ -102,16 +104,15 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M, r_max):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
     es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, M)
-    es_img = remove_r(es_img) # Should be no r component.
-    es_img = np.nan_to_num(es_img)
+    #es_img = remove_r(es_img) # Should be no r component.
 
     # Apply aperture. FIXME (MDH): implement.
-    #es_img = aperture(es_img, x, y, r_max)
+    #es_img = aperture(es_img, s_img_cart, r_max)
     
     return es_img
 
@@ -188,7 +189,8 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Necessary constants.
     #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2*np.pi*nm_obj/lamb*mpp # [pix**-1]
-    r_max = 100. # [pix] 
+    r_max = 100. # [pix]
+    sintheta_img = NA/(M*nm_img)
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -220,12 +222,14 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # 0) Propagate the Incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0/M, k_obj, z, (3, Np, Nq))
+    
     if not quiet:
         verbose(map_abs(e_inc), r'Plane wave at image $(x,y,z)$')
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
+    
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
@@ -233,13 +237,14 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Propagate the angular spectrum a distance z_p.
     disp = displacement(s_obj_cart, z, k_obj)
     ang_spec[1:, :] *= disp
-
+    
     if not quiet:
         verbose(np.real(disp), r'Displacement Field')
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M, 
+                        sintheta_img)
 
     if not quiet:
         verbose(map_abs(es_img), r'After Collection ($r$, $\theta$, $\phi$)')
@@ -302,10 +307,9 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    if not quiet:
-        verbose(np.hstack([M**2*cam_image, image]), 
-                r'Comparing Camera Plane Image to Focal Plane Image', 
-                gray=True)
+    verbose(np.hstack([M**2*cam_image, image]), 
+            r'Comparing Camera Plane Image to Focal Plane Image', 
+            gray=True)
 
 if __name__ == '__main__':
     import argparse
