@@ -48,7 +48,8 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    # TODO: Should by es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    return es*-np.sqrt(M*s_img.costheta/s_obj.costheta)
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -298,7 +299,7 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, 1.339, dim, 0.135, 0.447)
 
     # Visually compare the two.
-    plt.imshow(np.hstack([cam_image, image]))
+    plt.imshow(np.hstack([cam_image, image, cam_image - image + 1]))
     plt.title(r'Comparing Camera Plane Image to Focal Plane Image')
     plt.gray()
     plt.show()
