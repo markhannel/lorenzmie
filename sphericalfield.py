@@ -10,15 +10,16 @@ def check_if_numpy(x, char_x):
 
 def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     """
-    Calculate the complex electric field (or electric field strength factor) due to a 
-    Lorenz-Mie scatterer a height z [pixels] above the grid (sx, sy).
+    Calculate the complex electric field (or electric field strength factor) 
+    due to a Lorenz-Mie scatterer a height z [pixels] above the grid (sx, sy).
 
     Args:
         x: [npts] array of pixel coordinates [pixels]
         y: [npts] array of pixel coordinates [pixels]
         z: If field is required in a single plane, then
             z is the plane's distance from the sphere's center
-            [pixels]. Otherwise it is an [npts] array of pixel coordinates [pixels]
+            [pixels]. Otherwise it is an [npts] array of pixel coordinates 
+            [pixels].
         ab: [2, nc] array of a and b scattering coefficients, where
             nc is the number of terms required for convergence.
         lamb: wavelength of light in medium [pixels]
@@ -37,14 +38,14 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
             print 'x, y and ab must be numpy arrays'
             return None
 
-    if not check_if_numpy(z, 'z'):
-        if type(z) != int and type(z) != float and type(z) != np.float64:
-            print 'z must be a float or int'
-            return None
+    type_z = type(z)
+    if type_z != np.ndarray and type_z != int and type_z != float:
+        print 'z must be a float, int or numpy array.'
+        return None
 
-    z = np.array(z)
-    # Check the inputs are the right size
-    
+    z = np.array(z) # In case it is a float or integer.
+
+    # Check the inputs are the right size    
     if x.shape != y.shape:
         print 'x has shape {} while y has shape {}'.format(x.shape, y.shape)
         print 'and yet their dimensions must match.'
@@ -76,11 +77,12 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     coskr = np.cos(kr)
 
     '''
-    Particles above the focal plane create diverging waves described by Eq. (4.13) for
-    $h_n^{(1)}(kr)$. These have z > 0. Those below the focal plane appear to be 
-    converging from the perspective of the camera. They are descrinbed by Eq. (4.14) 
-    for $h_n^{(2)}(kr)$, and have z < 0. We can select the appropriate case by applying
-    the correct sign of the imaginary part of the starting functions...
+    Particles above the focal plane create diverging waves described by 
+    Eq. (4.13) for $h_n^{(1)}(kr)$. These have z > 0. Those below the focal 
+    plane appear to be converging from the perspective of the camera. They are 
+    descrinbed by Eq. (4.14) for $h_n^{(2)}(kr)$, and have z < 0. We can select 
+    the appropriate case by applying the correct sign of the imaginary part of 
+    the starting functions...
     '''
     xi_nm2 = coskr + np.sign(z)*1.j*sinkr # \xi_{-1}(kr) 
     xi_nm1 = sinkr - np.sign(z)*1.j*coskr # \xi_0(kr)    
