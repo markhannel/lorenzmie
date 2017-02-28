@@ -45,6 +45,7 @@ def displacement(s_obj_cart, z, k):
 
     inside = sxx**2+syy**2 < 1.
     disp = np.zeros(sxx.shape, dtype = complex)
+    # TODO: Are we sure about the sign of the phase?
     disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
     return disp
 
@@ -53,7 +54,7 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
     # Suppose the largest scatterer we consider is 20 lambda. Then
     # P should be larger than 40*NA.
-    diam = 400 # wavelengths
+    diam = 400.  # wavelengths
     p, q = int(diam*NA), int(diam*NA)
 
     # Pad with zeros to help dealias and to set del_x to mpp.
@@ -66,7 +67,7 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-1.*np.sqrt(M*s_img.costheta/s_obj.costheta)
+    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -78,7 +79,8 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     The wave is polarized in the x direction. The field is given as a 
     cartesian vector field.'''
     e_inc = np.zeros(shape, dtype = complex)
-    e_inc[0, :, :] += amplitude*np.exp(-1.j * k * path_len)
+    # TODO: Are we sure about the sign of the phase?
+    e_inc[0, :, :] += amplitude*np.exp(1.j * k * path_len)
     return e_inc
 
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
@@ -133,6 +135,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
 
     # Compute the electric field at plane 3.
     # TODO: Is it M or M**2?
+    # TODO: Where is the reference for this equation?
     es_cam  = (1.j*NA**2/(M**2*lamb*nm_img))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
@@ -306,6 +309,8 @@ def test_image(z=10.0, quiet=False):
     # Produce image in the focal plane.
     dim = cam_image.shape
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+
+    print 'max image, max cam_imag', np.max(image), np.max(cam_image)
 
     # Visually compare the two.
     diff = M**2*cam_image - image
