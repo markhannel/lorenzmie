@@ -150,6 +150,114 @@ def image_formation(es_cam, e_inc_cam):
     image = np.sum(np.real(fields*np.conjugate(fields)), axis = 0)
     return image
 
+
+def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
+                                  sintheta_img, n_disc_grid, p, q, Np, Nq, NA, lamb,
+                                  nm_img, quiet=True):
+    """Propagate angular spectrum through microscope to get field in camera."""
+
+    # 2) Collection.
+    # Compute the electric field strength factor leaving the tube lens.
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
+                        sintheta_img)
+
+    if not quiet:
+        verbose(map_abs(es_img), r'After Collection ($r$, $\theta$, $\phi$)')
+
+    # 3) Refocus.
+    # Input the electric field strength into the debye-wolf formalism to
+    # compute the scattered field at the camera plane.
+    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
+
+    if not quiet:
+        verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
+
+    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
+                     nm_img)
+
+    print('average of es_cam: {}'.format(np.max(image_formation(es_cam, es_cam))))
+    if not quiet:
+        verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
+
+    return es_cam
+
+def incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z):
+    """Calculate the incident field in the camera plane."""
+    # Necessary constants.
+    # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
+    k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
+
+    # Devise a discretization plan.
+    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    Np = pad_p + p
+    Nq = pad_q + q
+
+    # 0) Propagate the Incident field to the camera plane.
+    e_inc = propagate_plane_wave(-1.0 / M, k_obj, z, (3, Np, Nq))
+
+    return e_inc
+
+def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
+                       lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201],
+                       quiet=True):
+    """Calculate the field of a scattering particle in the camera plane."""
+
+    # Necessary constants.
+    # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
+    k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
+    r_max = 100.  # [pix]
+    sintheta_img = NA / (M * nm_img)
+
+    # Devise a discretization plan.
+    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    Np = pad_p + p
+    Nq = pad_q + q
+
+    # Compute the three geometries, s_img, s_obj, n_img
+    # Origins for the coordinate systems.
+    origin = [.5 * (p - 1.), .5 * (q - 1.)]
+
+    # Scale factors for the coordinate systems.
+    img_factor = 2 * NA / (M * nm_img)
+    obj_factor = 2 * NA / nm_obj
+    img_scale = [img_factor * 1. / p, img_factor * 1. / q]
+    obj_scale = [obj_factor * 1. / p, obj_factor * 1. / q]
+
+    # Cartesian Geometries.
+    # FIXME (MDH): is it necessary to have s_obj_cart?
+    s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
+    s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
+    n_disc_grid = g.CartesianCoordinates(Np, Nq, origin=[.5 * (Np - 1), .5 * (Nq - 1.)])
+    n_img_cart = g.CartesianCoordinates(Np, Nq, [.5 * (Np - 1.), .5 * (Nq - 1.)],
+                                        img_scale)
+
+    # Spherical Geometries.
+    s_obj_cart.acquire_spherical(1.)
+    s_img_cart.acquire_spherical(1.)
+    n_img_cart.acquire_spherical(1.)
+
+    # 1) Scattering.
+    # Compute the angular spectrum incident on entrance pupil of the objective.
+    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
+
+    if not quiet:
+        verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
+
+    # 1.5) Displacing the field.
+    # Propagate the angular spectrum a distance z_p.
+    disp = displacement(s_obj_cart, z, k_obj)
+    ang_spec[1:, :] *= disp
+
+    if not quiet:
+        verbose(np.real(disp), r'Displacement Field')
+
+    # 2 and 3) Collection and Refocus
+    es_cam = propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
+                                           sintheta_img, n_disc_grid, p, q, Np, Nq, NA, lamb,
+                                           nm_img, quiet=True)
+    return es_cam
+
+
 def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, 
                        lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201], 
                        quiet=True):
@@ -190,82 +298,11 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Applied Optics, 38(34), 7085.
     '''
 
-    # Necessary constants.
-    #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
-    k_obj = 2*np.pi*nm_obj/lamb*mpp # [pix**-1]
-    r_max = 100. # [pix]
-    sintheta_img = NA/(M*nm_img)
+    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
 
-    # Devise a discretization plan.
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    Np = pad_p + p
-    Nq = pad_q + q
-
-    # Compute the three geometries, s_img, s_obj, n_img
-    # Origins for the coordinate systems.
-    origin = [.5*(p-1.), .5*(q-1.)]
-    
-    # Scale factors for the coordinate systems.
-    img_factor = 2*NA/(M*nm_img)
-    obj_factor = 2*NA/nm_obj
-    img_scale = [img_factor*1./p, img_factor*1./q]
-    obj_scale = [obj_factor*1./p, obj_factor*1./q]
-
-    # Cartesian Geometries.
-    # FIXME (MDH): is it necessary to have s_obj_cart?
-    s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
-    s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
-    n_disc_grid = g.CartesianCoordinates(Np, Nq, origin=[.5*(Np-1), .5*(Nq-1.)])
-    n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], 
-                                         img_scale)
-
-    # Spherical Geometries.
-    s_obj_cart.acquire_spherical(1.)
-    s_img_cart.acquire_spherical(1.)
-    n_img_cart.acquire_spherical(1.)
-
-    # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(-1.0/M, k_obj, z, (3, Np, Nq))
-
-    if not quiet:
-        verbose(map_abs(e_inc), r'Plane wave at image $(x,y,z)$')
-
-    # 1) Scattering.
-    # Compute the angular spectrum incident on entrance pupil of the objective.
-    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
-
-    if not quiet:
-        verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
-
-    # 1.5) Displacing the field.
-    # Propagate the angular spectrum a distance z_p.
-    disp = displacement(s_obj_cart, z, k_obj)
-    ang_spec[1:, :] *= disp
-
-    if not quiet:
-        verbose(np.real(disp), r'Displacement Field')
-
-    # 2) Collection.
-    # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
-                        sintheta_img)
-
-    if not quiet:
-        verbose(map_abs(es_img), r'After Collection ($r$, $\theta$, $\phi$)')
-
-    # 3) Refocus.
-    # Input the electric field strength into the debye-wolf formalism to 
-    # compute the scattered field at the camera plane.
-    es_img = g.spherical_to_cartesian(es_img, s_img_cart)
-
-    if not quiet:
-        verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
-
-    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
-                     nm_img)
-    print('average of es_cam: {}'.format(np.max(image_formation(es_cam, es_cam))))
-    if not quiet:
-        verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
+    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+                                         lamb=lamb, mpp=mpp, M=M,
+                                         quiet=quiet)
 
     # 4) Image formation.
     # Combine the electric fields in the image plane to form an image.
