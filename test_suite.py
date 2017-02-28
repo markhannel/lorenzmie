@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from lorenzmie import lm_angular_spectrum
+#from lorenzmie import lm_angular_spectrum
+import debyewolf as dw
 import geometry as g
-from spheredhm import spheredhm
+from spheredhm import spheredhm, spherefield
 from sphere_coefficients import sphere_coefficients
 
 class LorenzMieTest(object):
@@ -102,6 +103,87 @@ class LorenzMieTest(object):
         # Compute angular spectrum at three different radial distances.
 
         # Plot results.
+
+class TestDebyeWolf(object):
+    def test_compare_fields(self, z=30.):
+        # Necessary parameters.
+        a_p = 0.5
+        n_p = 1.5
+        mpp = 0.135
+        NA = 1.45
+        lamb = 0.447
+        nm_obj = 1.339
+        nm_img = 1.0
+        M = 100
+        field_cam = np.sum(dw.particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+                                    lamb=lamb, mpp=mpp, M=M,
+                                    quiet=True), axis=0)
+        field_cam_scaled = field_cam * M
+
+        dim = field_cam.shape
+        print 'Dim', dim
+        field = np.sum(spherefield_holo(dim, [0,0, z/mpp], a_p, n_p, nm_obj, mpp, lamb), axis=0)
+
+        # Visually compare the two.
+        fields = [field_cam_scaled, field, field_cam_scaled - field]
+
+        dw.verbose(np.hstack(map(np.abs, fields)),
+                r'Camera Plane field, Focal Plane field and their Difference.',
+                gray=True)
+        dw.verbose(np.hstack(map(np.angle, fields)),
+                   r'Camera Plane field, Focal Plane field and their Difference.',
+                   gray=True)
+
+
+    def test_image(self, z=10.0, quiet=False):
+        import matplotlib.pyplot as plt
+        from spheredhm import spheredhm
+
+        # Necessary parameters.
+        a_p = 0.5
+        n_p = 1.5
+        mpp = 0.135
+        NA = 1.45
+        lamb = 0.447
+        f = 20. * 10 ** 2
+        dim = [201, 201]  # FIXME: Does nothing.
+        nm_obj = 1.339
+        nm_img = 1.0
+        M = 100
+
+        # Produce image with Debye-Wolf Formalism.
+        cam_image = dw.image_camera_plane(z / mpp, a_p, n_p, nm_obj=nm_obj,
+                                       nm_img=nm_img, NA=NA, lamb=lamb,
+                                       mpp=mpp, M=M, f=f, dim=dim,
+                                       quiet=quiet)
+
+        # Produce image in the focal plane.
+        dim = cam_image.shape
+        image = spheredhm([0, 0, z / mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+
+        print 'max image, max cam_imag', np.max(image), np.max(cam_image)
+
+        # Visually compare the two.
+        diff = M ** 2 * cam_image - image
+        print("Maximum difference: {}".format(np.max(diff)))
+        dw.verbose(np.hstack([M ** 2 * cam_image, image, diff + 1]),
+                r'Camera Plane Image, Focal Plane Image and their Difference.',
+                gray=True)
+
+
+def spherefield_holo(dim, rp, a_p, n_p, n_m, mpp, lamb):
+    """Convenience function to get scattered field."""
+
+    nx, ny = dim
+    x = np.tile(np.arange(nx, dtype=float), ny)
+    y = np.repeat(np.arange(ny, dtype=float), nx)
+    x -= float(nx) / 2. + float(rp[0])
+    y -= float(ny) / 2. + float(rp[1])
+    zp = float(rp[2])
+
+    field = spherefield(x, y, zp, a_p, n_p, n_m=n_m, cartesian=True, mpp=mpp,
+                        lamb=lamb, precision=False)
+    return field.reshape(3, int(ny), int(nx))
 
 if __name__ == '__main__':
     # Instantiate test class.

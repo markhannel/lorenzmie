@@ -67,7 +67,8 @@ def consv_energy(es, s_obj, s_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    #TODO: Are we sure the M should not go in sqrt?
+    return es*-np.sqrt(M*s_img.costheta/s_obj.costheta)
 
 def remove_r(es):
     '''Remove r component of vector.'''
