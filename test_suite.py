@@ -115,7 +115,7 @@ class TestDebyeWolf(object):
         nm_obj = 1.339
         nm_img = 1.0
         M = 100
-        field_cam = np.sum(dw.particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+        field_cam = np.sum(dw.particle_field_camera_plane(z/mpp, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
                                     lamb=lamb, mpp=mpp, M=M,
                                     quiet=True), axis=0)
         field_cam_scaled = field_cam * M
@@ -125,18 +125,19 @@ class TestDebyeWolf(object):
         field = np.sum(spherefield_holo(dim, [0,0, z/mpp], a_p, n_p, nm_obj, mpp, lamb), axis=0)
 
         # Visually compare the two.
-        fields = [field_cam_scaled, field, field_cam_scaled - field]
+        fields = [field_cam_scaled, field]
+        fieldsAbs = map(np.abs, fields)
+        fieldsAng = map(np.angle, fields)
 
-        dw.verbose(np.hstack(map(np.abs, fields)),
+        dw.verbose(np.hstack(fieldsAbs + [fieldsAbs[0] - fieldsAbs[1]]),
                 r'Camera Plane field, Focal Plane field and their Difference.',
                 gray=True)
-        dw.verbose(np.hstack(map(np.angle, fields)),
-                   r'Camera Plane field, Focal Plane field and their Difference.',
+
+        dw.verbose(np.hstack(fieldsAng + [fieldsAng[0] - fieldsAng[1]]),
+                   r'Camera Plane phase, Focal Plane phase and their Difference.',
                    gray=True)
 
-
-    def test_image(self, z=10.0, quiet=False):
-        import matplotlib.pyplot as plt
+    def test_image(self, z=30.0, quiet=False):
         from spheredhm import spheredhm
 
         # Necessary parameters.
@@ -173,7 +174,7 @@ class TestDebyeWolf(object):
 
 def spherefield_holo(dim, rp, a_p, n_p, n_m, mpp, lamb):
     """Convenience function to get scattered field."""
-
+    k = 2 * np.pi * n_m * mpp / lamb
     nx, ny = dim
     x = np.tile(np.arange(nx, dtype=float), ny)
     y = np.repeat(np.arange(ny, dtype=float), nx)
@@ -183,6 +184,8 @@ def spherefield_holo(dim, rp, a_p, n_p, n_m, mpp, lamb):
 
     field = spherefield(x, y, zp, a_p, n_p, n_m=n_m, cartesian=True, mpp=mpp,
                         lamb=lamb, precision=False)
+    field *= np.exp(np.complex(0., -k * zp))
+
     return field.reshape(3, int(ny), int(nx))
 
 if __name__ == '__main__':

@@ -46,7 +46,7 @@ def displacement(s_obj_cart, z, k):
     inside = sxx**2+syy**2 < 1.
     disp = np.zeros(sxx.shape, dtype = complex)
     # TODO: Are we sure about the sign of the phase?
-    disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
+    disp[inside] = np.exp(-1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
     return disp
 
 def discretize_plan(NA, M, lamb, nm_img, mpp):
@@ -81,7 +81,7 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     cartesian vector field.'''
     e_inc = np.zeros(shape, dtype = complex)
     # TODO: Are we sure about the sign of the phase?
-    e_inc[0, :, :] += amplitude*np.exp(1.j * k * path_len)
+    e_inc[0, :, :] += amplitude*np.exp(-1.j * k * path_len)
     return e_inc
 
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
