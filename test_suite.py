@@ -137,6 +137,47 @@ class TestDebyeWolf(object):
                    r'Camera Plane phase, Focal Plane phase and their Difference.',
                    gray=True)
 
+    def test_compare_fieldsMatchPhase(self, z=30.):
+        # Necessary parameters.
+        a_p = 1.5
+        n_p = 1.5
+        mpp = 0.135
+        NA = 1.45
+        lamb = 0.447
+        nm_obj = 1.339
+        nm_img = 1.0
+        M = 100
+        field_cam = np.sum(dw.particle_field_camera_plane(z/mpp, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+                                    lamb=lamb, mpp=mpp, M=M,
+                                    quiet=True), axis=0)
+        field_cam_scaled = field_cam * M
+
+        dim = field_cam.shape
+        print 'Dim', dim
+        field = np.sum(spherefield_holo(dim, [0,0, z/mpp], a_p, n_p, nm_obj, mpp, lamb), axis=0)
+
+        phase_cam = np.angle(field_cam_scaled[dim[0]/2, dim[1]/2])
+        phase = np.angle(field[dim[0]/2, dim[1]/2])
+        print 'phase at center', phase_cam, phase
+
+        field_cam_scaled *= np.exp(-1.j * (phase_cam - phase))
+
+        phase_cam = np.angle(field_cam_scaled[dim[0] / 2, dim[1] / 2])
+        phase = np.angle(field[dim[0] / 2, dim[1] / 2])
+        print 'phase at center', phase_cam, phase
+        # Visually compare the two.
+        fields = [field_cam_scaled, field]
+        fieldsAbs = map(np.abs, fields)
+        fieldsAng = map(np.angle, fields)
+
+        dw.verbose(np.hstack(fieldsAbs + [fieldsAbs[0] - fieldsAbs[1]]),
+                r'Camera Plane field, Focal Plane field and their Difference.',
+                gray=True)
+
+        dw.verbose(np.hstack(fieldsAng + [fieldsAng[0] - fieldsAng[1]]),
+                   r'Camera Plane phase, Focal Plane phase and their Difference.',
+                   gray=True)
+
     def test_image(self, z=30.0, quiet=False):
         from spheredhm import spheredhm
 
