@@ -59,11 +59,11 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
     return pad_p, pad_q, p, q
 
-def consv_energy(es, s_obj, s_img, M):
+def consv_energy(es, s_obj, s_img, nm_obj, nm_img, M):
     '''Changes electric field strength factor density to obey the conversation of 
     energy. See Eq. 108 of Ref. 1.
     '''
-    return es*-M*np.sqrt(s_img.costheta/s_obj.costheta)
+    return es*-M*np.sqrt(nm_img*s_img.costheta/(nm_obj*s_obj.costheta))
 
 def remove_r(es):
     '''Remove r component of vector.'''
@@ -102,11 +102,11 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M, r_max):
+def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M, r_max):
     '''Compute the angular spectrum leaving the exit pupil.'''
 
     # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, M)
+    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M)
     #es_img = remove_r(es_img) # Should be no r component.
 
     # Apply aperture. FIXME (MDH): implement.
@@ -187,7 +187,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Necessary constants.
     #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2*np.pi*nm_obj/lamb*mpp # [pix**-1]
-    r_max = 100. # [pix]
+    r_max = 1000. # [pix]
     sintheta_img = NA/(M*nm_img)
 
     # Devise a discretization plan.
@@ -219,15 +219,15 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     n_img_cart.acquire_spherical(1.)
 
     # 0) Propagate the Incident field to the camera plane.
-    e_inc = propagate_plane_wave(-1.0/M, k_obj, z, (3, Np, Nq))
-    
+    e_inc = propagate_plane_wave(-1.0/M*np.sqrt(nm_obj/nm_img), k_obj, z, (3, Np, Nq))
+
     if not quiet:
         verbose(map_abs(e_inc), r'Plane wave at image $(x,y,z)$')
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
-    
+
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
@@ -235,13 +235,13 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Propagate the angular spectrum a distance z_p.
     disp = displacement(s_obj_cart, z, k_obj)
     ang_spec[1:, :] *= disp
-    
+
     if not quiet:
         verbose(np.real(disp), r'Displacement Field')
 
     # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, M, 
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M, 
                         sintheta_img)
 
     if not quiet:
@@ -255,9 +255,9 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     if not quiet:
         verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
 
-    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
+    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb/mpp,
                      nm_img)
-
+    
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
 
@@ -285,7 +285,7 @@ def test_image(z=10.0, quiet=False):
     # Necessary parameters.
     a_p = 0.5
     n_p = 1.5
-    mpp = 0.135
+
     NA = 1.45
     lamb = 0.447
     f = 20.*10**2
@@ -293,7 +293,8 @@ def test_image(z=10.0, quiet=False):
     nm_obj = 1.339
     nm_img = 1.0
     M = 100
-
+    mpp = 0.135
+    
     # Produce image with Debye-Wolf Formalism.
     cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj=nm_obj, 
                                    nm_img=nm_img,  NA=NA, lamb=lamb, 
@@ -305,9 +306,9 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    diff = M**2*cam_image - image
+    diff = M**2*nm_img/nm_obj*cam_image - image
     print("Maximum difference between two images: {}".format(np.max(diff)))
-    verbose(np.hstack([M**2*cam_image, image, diff+1]), 
+    verbose(np.hstack([M**2*nm_img/nm_obj*cam_image, image, diff+1]), 
             r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
 
