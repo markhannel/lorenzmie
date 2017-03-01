@@ -257,7 +257,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb,
                      nm_img)
-    print('average of es_cam: {}'.format(np.max(image_formation(es_cam, es_cam))))
+
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
 
@@ -306,7 +306,7 @@ def test_image(z=10.0, quiet=False):
 
     # Visually compare the two.
     diff = M**2*cam_image - image
-    print("Maximum difference: {}".format(np.max(diff)))
+    print("Maximum difference between two images: {}".format(np.max(diff)))
     verbose(np.hstack([M**2*cam_image, image, diff+1]), 
             r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
