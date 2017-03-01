@@ -25,14 +25,13 @@ def verbose(data, title, gray=False):
 
 def aperture(field, geom, r_max):
     '''Sets field to zero wherever x**2+y**2 >= rmax.'''
-    x = geom.xx
-    y = geom.yy
-    indices = np.where(x**2+y**2 >= r_max**2)
+    rho_sq = geom.xx**2 + geom.yy**2
+    indices = np.where(rho_sq >= r_max**2)
     field[:, indices[0], indices[1]] = 0
 
     return field
 
-def displacement(s_obj_cart, z, k):
+def displacement(geom, z, k):
     '''Returns the displacement phase accumulated by an angular spectrum
     propagating a distance z. 
     
@@ -40,12 +39,10 @@ def displacement(s_obj_cart, z, k):
             [See 3.10.2 Propagation of the Angular Spectrum]
     '''
 
-    sxx = s_obj_cart.xx
-    syy = s_obj_cart.yy
-
-    inside = sxx**2+syy**2 < 1.
-    disp = np.zeros(sxx.shape, dtype = complex)
-    disp[inside] = np.exp(-1.0j * k * z * np.sqrt( 1. - sxx[inside]**2 - syy[inside]**2))
+    rho_sq = geom.xx**2 + geom.yy**2
+    inside = rho_sq < 1.
+    disp = np.zeros(geom.xx.shape, dtype = complex)
+    disp[inside] = np.exp(-1.0j * k * z * np.sqrt( 1. - rho_sq[inside]))
     return disp
 
 def discretize_plan(NA, M, lamb, nm_img, mpp):
@@ -90,10 +87,11 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
     ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
-    inds = sx**2+sy**2 < 1.
+    rho_sq = sx**2 + sy**2
+    inds = rho_sq < 1.
 
     costheta = np.zeros(sx.shape)
-    costheta[inds] = np.sqrt(1. - sx[inds]**2 - sy[inds]**2)
+    costheta[inds] = np.sqrt(1. - rho_sq[inds])
 
     # Compute the electromagnetic strength factor on the object side 
     # (Eq 40 Ref[1]).
