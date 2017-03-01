@@ -143,7 +143,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     # ... put them back at the end.
     if str_factor:
         # Compute the electric field strength factor by removing r-dependence.
-        radialFactor = np.exp(1.0j*kr) / k
+        radialFactor = np.exp(-1.0j*kr) / k
     else:
         radialFactor = 1 / kr
     Es[0, :] *= cosphi * sintheta * radialFactor / kr
