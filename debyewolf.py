@@ -130,7 +130,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
     es_m_n = np.fft.fftshift(es_m_n, axes = (1,2))
 
     # Compute the electric field at plane 3.
-    es_cam  = (1.j*NA**2/(M**2*lamb*nm_img))*(4./(p*q))*es_m_n
+    es_cam  = (1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
@@ -186,7 +186,7 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # Necessary constants.
     #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
-    k_obj = 2*np.pi*nm_obj/lamb*mpp # [pix**-1]
+    k_obj = 2*np.pi*nm_obj*mpp/lamb # [pix**-1]
     r_max = 1000. # [pix]
     sintheta_img = NA/(M*nm_img)
 
@@ -220,14 +220,13 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     # 0) Propagate the Incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0/M*np.sqrt(nm_obj/nm_img), k_obj, z, (3, Np, Nq))
-
     if not quiet:
         verbose(map_abs(e_inc), r'Plane wave at image $(x,y,z)$')
 
     # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
-
+    
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
@@ -255,8 +254,8 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     if not quiet:
         verbose(map_abs(es_img), r'Before Refocusing $(x, y, z)$')
 
-    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, lamb/mpp,
-                     nm_img)
+    es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M, 
+                     lamb/mpp, nm_img)
     
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
