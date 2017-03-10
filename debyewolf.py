@@ -126,15 +126,15 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
     g_aux = es_img * np.exp(-1.j*2*np.pi*aber/lamb) / s_img.costheta 
 
     # Apply discrete Fourier Transform (Eq. 135).
-    es_m_n = np.fft.fft2(g_aux, s = (Np,Nq))
+    es_m_n = np.fft.ifft2(g_aux, s = (Np,Nq))*(Np*Nq)
     es_m_n = np.fft.fftshift(es_m_n, axes = (1,2))
 
     # Compute the electric field at plane 3.
-    es_cam  = (1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
+    es_cam  = (-1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
-    es_cam *= np.exp(-1.j*np.pi*( mm*(1.-p)/Np + nn*(1.-q)/Nq))
+    es_cam *= np.exp(-1.j*np.pi*( mm*(p-1.)/Np + nn*(q-1.)/Nq))
 
     return es_cam
 
