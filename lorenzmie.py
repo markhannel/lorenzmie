@@ -9,9 +9,9 @@ def check_if_numpy(x, char_x):
         return True
 
 
-def lm_electric_strength_factor(geom, ab, lamb, n_m, r, z = 0):
+def lm_angular_spectrum(geom, ab, lamb, n_m, r, z = 0):
     """
-    Calculate the the electric field strength factor as function of angle given
+    Calculate the angular spectrum of the electric field strength factor given
     scattering coefficients.
 
     Args:
@@ -136,32 +136,3 @@ def lm_electric_strength_factor(geom, ab, lamb, n_m, r, z = 0):
     Es *= np.exp(1.0j*kr)
     
     return Es
-
-
-def lm_angular_spectrum(geom, ab, lamb, n_m):
-    """
-    Calculate the angular spectrum of a particle's scattered field based
-    on its the electric field strength factor.
-
-    Ref. Eq. 48 of Capoglu.
-    """
-    # Calculate the strength factor at infinity (approximated by a large number)
-    r = 1000.
-
-    sx, sy = geom.xx, geom.yy
-    # Compute relevant coordinates.
-    unit_rho_sq = sx**2+sy**2
-    inds = np.where(unit_rho_sq < 1)
-
-    costheta = np.zeros(sx.shape)
-    costheta[inds] = np.sqrt(1. - unit_rho_sq[inds])
-
-    Es = lm_electric_strength_factor(geom, ab, lamb, n_m, r, z = 0)
-    print 'Es shape', Es.shape
-    p, q = geom.shape
-    Es = Es.reshape(3,p,q)
-    angular_spectrum = Es * lamb / (complex(0, 1) * n_m * costheta)
-
-    print 'ang spec', angular_spectrum
-    print 'ang spec shape', angular_spectrum.shape
-    return angular_spectrum

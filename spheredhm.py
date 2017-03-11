@@ -1,9 +1,7 @@
-import numpy as nmp
+import numpy as np
 from spherefield import spherefield
-# TODO (MDH): Change tile and repeat
 
-
-def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False, 
+def spheredhm(rp, a_p, n_p, n_m, dim, mpp = 0.135, lamb = .447, alpha = False, 
               precision = False,  lut = False):
     """
     Compute holographic microscopy image of a sphere immersed in a transparent 
@@ -12,9 +10,9 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
     Args:
         rp  : [x, y, z] 3 dimensional position of sphere relative to center
               of image.
-        ap  : radius of sphere [micrometers]
-        np  : (complex) refractive index of sphere
-        nm  : (complex) refractive index of medium
+        a_p  : radius of sphere [micrometers]
+        n_p  : (complex) refractive index of sphere
+        n_m  : (complex) refractive index of medium
         dim : [nx, ny] dimensions of image [pixels]
 
     NOTE: The imaginary parts of the complex refractive indexes
@@ -33,54 +31,55 @@ def spheredhm(rp, ap, np, nm, dim, mpp = 0.135, lamb = .447, alpha = False,
         dhm: [nx, ny] holographic image                
     """
     
-    nx, ny = map(float, dim)
-    x = nmp.tile(nmp.arange(nx), ny)
-    y = nmp.repeat(nmp.arange(ny), nx)
-    x -= nx/2. + float(rp[0])
-    y -= ny/2. + float(rp[1])
+    nx, ny = dim
+    x = np.tile(np.arange(nx, dtype = float), ny)
+    y = np.repeat(np.arange(ny, dtype = float), nx)
+    x -= float(nx)/2. + float(rp[0])
+    y -= float(ny)/2. + float(rp[1])
 
-    if lut == 'lut':
-        rho = nmp.sqrt(x**2 + y**2)
-        x = nmp.arange(nmp.fix(rho).max()+1)
+    if lut:
+        rho = np.sqrt(x**2 + y**2)
+        x = np.arange(np.fix(rho).max()+1)
         y = 0. * x
 
     zp = float(rp[2])
 
-    field = spherefield(x, y, zp, ap, np, nm = nm, cartesian = True, mpp = mpp, 
+    field = spherefield(x, y, zp, a_p, n_p, n_m = n_m, cartesian = True, mpp = mpp, 
                         lamb = lamb, precision = precision)
-    
     if alpha: 
         field *= alpha
     
-    k = 2.0*nmp.pi/(lamb/nmp.real(nm)/mpp)
+    k = 2.0*np.pi/(lamb/np.real(n_m)/mpp)
     
     # Compute the sum of the incident and scattered fields, then square.
-    field *= nmp.exp(nmp.complex(0.,-k*zp))
-    field[:,0] += 1.0
-    image = nmp.sum(nmp.real(field*nmp.conj(field)), axis = 1)
+    field *= np.exp(np.complex(0.,-k*zp))
+    field[0,:] += 1.0
+    image = np.sum(np.real(field*np.conj(field)), axis = 0)
 
-    if lut == True: 
-        image = nmp.interpolate(image, rho, cubic=-0.5)
+    if lut: 
+        image = np.interpolate(image, rho, cubic=-0.5)
 
-    return image.reshape(ny,nx)
+    return image.reshape(int(ny), int(nx))
 
 def test_spheredhm():
+    '''Produces a test hologram resulting from a spherical scatterer.'''
+    # Particle and imaging properties.
     mpp = 0.135
     z = 10.0/mpp
-    
     rp = [0,0,z]
-    ap = 0.5
-    np = 1.5
-    nm = 1.339
+    a_p = 0.5
+    n_p = 1.5
+    n_m = 1.339
     dim = [201,201]
     lamb = 0.447
-
-    image = spheredhm(rp, ap, np, nm , dim, lamb = lamb, mpp = mpp)
     
-    print nmp.average(image[0:10,0])
+    # Produce Image.
+    image = spheredhm(rp, a_p, n_p, n_m , dim, lamb = lamb, mpp = mpp)
 
+    # Plot the hologram.
     import matplotlib.pyplot as plt
     plt.imshow(image)
+    plt.title("Test Hologram")
     plt.gray()
     plt.show()
 
