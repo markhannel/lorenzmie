@@ -346,7 +346,7 @@ def test_image(z=10.0, quiet=False):
 
     # Produce image in the focal plane.
     dim = cam_image.shape
-    image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+    image = spheredhm([0,0, -z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
     diff = M**2*nm_img/nm_obj*cam_image - image
