@@ -213,7 +213,7 @@ class TestDebyeWolf(object):
                 r'Camera Plane Image, Focal Plane Image and their Difference.',
                 gray=True)
 
-    def test_imageStack(self, zRange=(5.0, 40.), nSteps = 30, quiet=True):
+    def test_imageStack(self, zRange=(5.0, 40.), nSteps = 10, quiet=True):
         from spheredhm import spheredhm
 
         # Necessary parameters.
@@ -224,7 +224,7 @@ class TestDebyeWolf(object):
         lamb = 0.447
         f = 20. * 10 ** 2
         dim = [201, 201]  # FIXME: Does nothing.
-        nm_obj = 1.339
+        nm_obj = 1.0
         nm_img = 1.0
         M = 100
         mpp = 0.135
