@@ -2,3 +2,5 @@
 .idea/
 *.png
 .DS_Store
+*~
+*.txt
