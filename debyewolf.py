@@ -16,11 +16,13 @@ def check_if_numpy(x, char_x):
     else:
         return True
 
-def verbose(data, title, gray=False):
-    plt.imshow(data)
+def verbose(data, title, gray=False, outfile=None, **kwargs):
+    plt.imshow(data, **kwargs)
     plt.title(title)
     if gray:
         plt.gray()
+    if outfile is not None:
+        plt.savefig(outfile)
     plt.show()
 
 def aperture(field, geom, r_max):

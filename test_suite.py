@@ -184,7 +184,7 @@ class TestDebyeWolf(object):
         # Necessary parameters.
         a_p = 0.5
         n_p = 1.5
-        mpp = 0.135
+
         NA = 1.45
         lamb = 0.447
         f = 20. * 10 ** 2
@@ -192,6 +192,7 @@ class TestDebyeWolf(object):
         nm_obj = 1.339
         nm_img = 1.0
         M = 100
+        mpp = 0.135
 
         # Produce image with Debye-Wolf Formalism.
         cam_image = dw.image_camera_plane(z / mpp, a_p, n_p, nm_obj=nm_obj,
@@ -211,6 +212,65 @@ class TestDebyeWolf(object):
         dw.verbose(np.hstack([M ** 2 * cam_image, image, diff + 1]),
                 r'Camera Plane Image, Focal Plane Image and their Difference.',
                 gray=True)
+
+    def test_imageStack(self, zRange=(5.0, 40.), nSteps = 30, quiet=True):
+        from spheredhm import spheredhm
+
+        # Necessary parameters.
+        a_p = 0.5
+        n_p = 1.5
+
+        NA = 1.45
+        lamb = 0.447
+        f = 20. * 10 ** 2
+        dim = [201, 201]  # FIXME: Does nothing.
+        nm_obj = 1.339
+        nm_img = 1.0
+        M = 100
+        mpp = 0.135
+
+        try:
+            images = np.load('imageSlices.npz')
+            imageSlice = images['imageSlice']
+            imageSliceCam = images['imageSliceCam']
+        except:
+            # Produce image with Debye-Wolf Formalism.
+            cam_image = dw.image_camera_plane(zRange[0] / mpp, a_p, n_p, nm_obj=nm_obj,
+                                           nm_img=nm_img, NA=NA, lamb=lamb,
+                                           mpp=mpp, M=M, f=f, dim=dim,
+                                           quiet=quiet)
+
+            # Produce image in the focal plane.
+            dim = cam_image.shape
+
+            imageSliceCam = np.zeros((nSteps, dim[0]))
+            imageSlice = np.zeros((nSteps, dim[0]))
+
+            zs = np.linspace(zRange[0], zRange[1], nSteps)
+            for i, z in enumerate(zs):
+                print 'Calculating slice ', i
+                # Produce image with Debye-Wolf Formalism.
+                cam_image = dw.image_camera_plane(z / mpp, a_p, n_p, nm_obj=nm_obj,
+                                           nm_img=nm_img, NA=NA, lamb=lamb,
+                                           mpp=mpp, M=M, f=f, dim=dim,
+                                           quiet=quiet)
+
+
+                image = spheredhm([0, 0, z / mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+
+                imageSliceCam[i] = cam_image[:, dim[1]/2]
+                imageSlice[i] = image[:, dim[1]/2]
+
+
+            np.savez('imageSlices.npz', imageSlice=imageSlice, imageSliceCam=imageSliceCam)
+
+        # Save and plot result
+        dw.verbose(np.hstack([M ** 2 * imageSliceCam, imageSlice]),
+                    r'Image slices versus z.',
+                    gray=True, outfile='imageSlices.png',
+                    extent=[0, len(imageSliceCam[0,:])*2*mpp, 0, zRange[1]-zRange[0]])
+
+
 
 
 def spherefield_holo(dim, rp, a_p, n_p, n_m, mpp, lamb):
