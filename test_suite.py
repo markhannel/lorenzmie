@@ -271,6 +271,29 @@ class TestDebyeWolf(object):
                     extent=[0, len(imageSliceCam[0,:])*2*mpp, 0, zRange[1]-zRange[0]])
 
 
+class TestSpheredhm(object):
+    def test_belowFocal(self):
+        '''Produces a test hologram resulting from a spherical scatterer below focal plane.'''
+        # Particle and imaging properties.
+        mpp = 0.135
+        z = -30.0/mpp
+        rp = [0,0,z]
+        a_p = 0.5
+        n_p = 1.5
+        n_m = 1.339
+        dim = [201,201]
+        lamb = 0.447
+
+        # Produce Image.
+        image = spheredhm(rp, a_p, n_p, n_m , dim, lamb = lamb, mpp = mpp)
+
+        # Plot the hologram.
+        import matplotlib.pyplot as plt
+        plt.imshow(image)
+        plt.title("Test Hologram")
+        plt.gray()
+        plt.show()
+
 
 
 def spherefield_holo(dim, rp, a_p, n_p, n_m, mpp, lamb):
