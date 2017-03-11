@@ -256,7 +256,7 @@ class TestDebyeWolf(object):
                                            quiet=quiet)
 
 
-                image = spheredhm([0, 0, -z / mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+                image = spheredhm([0, 0, z / mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
                 imageSliceCam[i] = cam_image[:, dim[1]/2]
                 imageSlice[i] = image[:, dim[1]/2]

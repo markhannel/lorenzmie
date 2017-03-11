@@ -298,9 +298,9 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Applied Optics, 38(34), 7085.
     '''
 
-    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
+    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, -z)
 
-    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+    es_cam = particle_field_camera_plane(-z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
                                          lamb=lamb, mpp=mpp, M=M,
                                          quiet=quiet)
 
@@ -346,7 +346,7 @@ def test_image(z=10.0, quiet=False):
 
     # Produce image in the focal plane.
     dim = cam_image.shape
-    image = spheredhm([0,0, -z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+    image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
     diff = M**2*nm_img/nm_obj*cam_image - image
