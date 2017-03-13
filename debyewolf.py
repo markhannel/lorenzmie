@@ -44,7 +44,7 @@ def displacement(geom, z, k):
     rho_sq = geom.xx**2 + geom.yy**2
     inside = rho_sq < 1.
     disp = np.zeros(geom.xx.shape, dtype = complex)
-    disp[inside] = np.exp(-1.0j * k * z * np.sqrt( 1. - rho_sq[inside]))
+    disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - rho_sq[inside]))
     return disp
 
 def discretize_plan(NA, M, lamb, nm_img, mpp):
@@ -77,8 +77,7 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     The wave is polarized in the x direction. The field is given as a 
     cartesian vector field.'''
     e_inc = np.zeros(shape, dtype = complex)
-    # TODO: Are we sure about the sign of the phase?
-    e_inc[0, :, :] += amplitude*np.exp(-1.j * k * path_len)
+    e_inc[0, :, :] += amplitude*np.exp(1.j * k * path_len)
     return e_inc
 
 def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
@@ -133,7 +132,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
     es_m_n = np.fft.fftshift(es_m_n, axes = (1,2))
 
     # Compute the electric field at plane 3.
-    # TODO: Where is the reference for this equation?
+    # Eq. 139 of reference.
     es_cam  = (-1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
@@ -298,9 +297,9 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Applied Optics, 38(34), 7085.
     '''
 
-    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, -z)
+    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
 
-    es_cam = particle_field_camera_plane(-z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
                                          lamb=lamb, mpp=mpp, M=M,
                                          quiet=quiet)
 
