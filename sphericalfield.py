@@ -8,7 +8,7 @@ def check_if_numpy(x, char_x):
     else:
         return True
 
-def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
+def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False, convention='Bohren'):
     """
     Calculate the complex electric field (or electric field strength factor) 
     due to a Lorenz-Mie scatterer a height z [pixels] above the grid (sx, sy).
@@ -44,8 +44,9 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
         return None
 
     z = np.array(z) # In case it is a float or integer.
+    signZ = np.sign(z)
 
-    # Check the inputs are the right size    
+    # Check the inputs are the right size
     if x.shape != y.shape:
         print 'x has shape {} while y has shape {}'.format(x.shape, y.shape)
         print 'and yet their dimensions must match.'
@@ -77,35 +78,39 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
     coskr = np.cos(kr)
 
     '''
-    Particles above the focal plane create diverging waves described by 
-    Eq. (4.13) for $h_n^{(1)}(kr)$. These have z > 0. Those below the focal 
-    plane appear to be converging from the perspective of the camera. They are 
-    descrinbed by Eq. (4.14) for $h_n^{(2)}(kr)$, and have z < 0. We can select 
-    the appropriate case by applying the correct sign of the imaginary part of 
+    Particles above the focal plane create diverging waves described by
+    Eq. (4.13) for $h_n^{(1)}(kr)$. These have z > 0. Those below the focal
+    plane appear to be converging from the perspective of the camera. They are
+    descrinbed by Eq. (4.14) for $h_n^{(2)}(kr)$, and have z < 0. We can select
+    the appropriate case by applying the correct sign of the imaginary part of
     the starting functions...
     '''
-    xi_nm2 = coskr + np.sign(z)*1.j*sinkr # \xi_{-1}(kr) 
-    xi_nm1 = sinkr - np.sign(z)*1.j*coskr # \xi_0(kr)    
+    if convention == 'Bohren':
+        factor = 1
+    else:
+        factor = -1
+    xi_nm2 = coskr + factor * signZ*1.j*sinkr # \xi_{-1}(kr)
+    xi_nm1 = sinkr - factor * signZ*1.j*coskr # \xi_0(kr)
     #xi_nm2 = coskr + 1.j*sinkr
     #xi_nm1 = sinkr - 1.j*coskr
     # ... angular functions (4.47), page 95
     pi_nm1 = 0.0                    # \pi_0(\cos\theta)
     pi_n   = 1.0                    # \pi_1(\cos\theta)
- 
+
     # storage for vector spherical harmonics: [r,theta,phi]
     Mo1n = np.zeros([3, npts],complex)
     Ne1n = np.zeros([3, npts],complex)
 
     # storage for scattered field
     Es = np.zeros([3, npts],complex)
-        
+
     # Compute field by summing multipole contributions
     for n in xrange(1, nc+1):
 
         # upward recurrences ...
         # ... Legendre factor (4.47)
         # Method described by Wiscombe (1980)
-        swisc = pi_n * costheta 
+        swisc = pi_n * costheta
         twisc = swisc - pi_nm1
         tau_n = pi_nm1 - n * twisc  # -\tau_n(\cos\theta)
 
@@ -127,7 +132,7 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False):
 
         # the scattered field in spherical coordinates (4.45)
         Es += En * (1.j * ab[n,0] * Ne1n - ab[n,1] * Mo1n)
- 
+
         # upward recurrences ...
         # ... angular functions (4.47)
         # Method described by Wiscombe (1980)
