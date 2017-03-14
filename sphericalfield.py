@@ -8,7 +8,8 @@ def check_if_numpy(x, char_x):
     else:
         return True
 
-def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False, convention='Bohren'):
+def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False, 
+                   convention='Bohren'):
     """
     Calculate the complex electric field (or electric field strength factor) 
     due to a Lorenz-Mie scatterer a height z [pixels] above the grid (sx, sy).
