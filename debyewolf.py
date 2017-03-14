@@ -62,8 +62,8 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     return pad_p, pad_q, p, q
 
 def consv_energy(es, s_obj, s_img, nm_obj, nm_img, M):
-    '''Changes electric field strength factor density to obey the conversation of 
-    energy. See Eq. 108 of Ref. 1.
+    '''Changes electric field strength factor density to obey the conversation 
+    of energy. See Eq. 108 of Ref. 1.
     '''
     return es*-M*np.sqrt(nm_img*s_img.costheta/(nm_obj*s_obj.costheta))
 
@@ -109,10 +109,8 @@ def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M, r_max):
 
     # Ensure conservation of energy is observed with abbe sine condition.
     es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M)
-    #es_img = remove_r(es_img) # Should be no r component.
-
-    # Apply aperture. FIXME (MDH): implement.
-    #es_img = aperture(es_img, s_img_cart, r_max)
+    #es_img = remove_r(es_img) # Implemented ...
+    #es_img = aperture(es_img, # ... automatically
     
     return es_img
 
@@ -172,7 +170,6 @@ def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
     es_cam = refocus(es_img, s_img_cart, n_disc_grid, p, q, Np, Nq, NA, M,
                      lamb/mpp, nm_img)
 
-    print('average of es_cam: {}'.format(np.max(image_formation(es_cam, es_cam))))
     if not quiet:
         verbose(map_abs(es_cam), r'After Refocusing $(x, y, z)$')
 
@@ -183,8 +180,6 @@ def incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z):
     # Necessary constants.
     #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2*np.pi*nm_obj*mpp/lamb # [pix**-1]
-    r_max = 1000. # [pix]
-    sintheta_img = NA/(M*nm_img)
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -204,7 +199,7 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # Necessary constants.
     # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
-    r_max = 100.  # [pix]
+    r_max = 1000.  # [pix]
     sintheta_img = NA / (M * nm_img)
 
     # Devise a discretization plan.
@@ -321,7 +316,6 @@ def test_discretize():
     print del_x/M
 
 def test_image(z=10.0, quiet=False):
-    import matplotlib.pyplot as plt
     from spheredhm import spheredhm
 
     # Necessary parameters.
