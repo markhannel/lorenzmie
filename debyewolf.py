@@ -273,18 +273,6 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     return image_formation(es_cam, e_inc)
 
-
-def test_discretize():
-    NA = 1.45
-    M = 100
-    lamb = 0.447
-    nm_img = 1.0
-    mpp = 0.135
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    
-    del_x = lamb*p*M/(2*NA*(pad_p+p))
-    print del_x/M
-
 def test_image(z=10.0, quiet=False):
     from spheredhm import spheredhm
 
