@@ -8,14 +8,6 @@ import geometry as g
 def map_abs(data):
     return np.hstack(map(np.abs, data[:]))
 
-def check_if_numpy(x, char_x):
-    ''' checks if x is a numpy array '''
-    if type(x) != np.ndarray:
-        print char_x + ' must be an numpy array'
-        return False
-    else:
-        return True
-
 def verbose(data, title, gray=False, outfile=None, **kwargs):
     plt.imshow(data, **kwargs)
     plt.title(title)
@@ -33,20 +25,6 @@ def aperture(field, geom, r_max):
 
     return field
 
-def displacement(geom, z, k):
-    '''Returns the displacement phase accumulated by an angular spectrum
-    propagating a distance z. 
-    
-    Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
-            [See 3.10.2 Propagation of the Angular Spectrum]
-    '''
-
-    rho_sq = geom.xx**2 + geom.yy**2
-    inside = rho_sq < 1.
-    disp = np.zeros(geom.xx.shape, dtype = complex)
-    disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - rho_sq[inside]))
-    return disp
-
 def discretize_plan(NA, M, lamb, nm_img, mpp):
     '''Discretizes a plane according to Eq. 130 - 131.'''
 
@@ -60,17 +38,6 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
 
     return pad_p, pad_q, p, q
-
-def consv_energy(es, s_obj, s_img, nm_obj, nm_img, M):
-    '''Changes electric field strength factor density to obey the conversation 
-    of energy. See Eq. 108 of Ref. 1.
-    '''
-    return es*-M*np.sqrt(nm_img*s_img.costheta/(nm_obj*s_obj.costheta))
-
-def remove_r(es):
-    '''Remove r component of vector.'''
-    es[0,:,:] = 0.0
-    return es
 
 def propagate_plane_wave(amplitude, k, path_len, shape):
     '''Propagates a plane with wavenumber k through a distance path_len. 
@@ -104,15 +71,25 @@ def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
 
     return ang_spec.reshape(3, p, q)
 
-def collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M, r_max):
-    '''Compute the angular spectrum leaving the exit pupil.'''
-
-    # Ensure conservation of energy is observed with abbe sine condition.
-    es_img = consv_energy(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M)
-    #es_img = remove_r(es_img) # Implemented ...
-    #es_img = aperture(es_img, # ... automatically
+def displacement(geom, z, k):
+    '''Returns the displacement phase accumulated by an angular spectrum
+    propagating a distance z. 
     
-    return es_img
+    Ref[2]: J. Goodman, Introduction to Fourier Optics, 2nd Edition, 1996
+            [See 3.10.2 Propagation of the Angular Spectrum]
+    '''
+
+    rho_sq = geom.xx**2 + geom.yy**2
+    inside = rho_sq < 1.
+    disp = np.zeros(geom.xx.shape, dtype = complex)
+    disp[inside] = np.exp(1.0j * k * z * np.sqrt( 1. - rho_sq[inside]))
+    return disp
+
+def collection(es, s_obj, s_img, nm_obj, nm_img, M):
+    '''Modulates the electric field strength factor as it passes through
+    a microscope. See Eq. 108 of Ref. 1.
+    '''
+    return es*-M*np.sqrt(nm_img*s_img.costheta/(nm_obj*s_obj.costheta))
 
 def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
             aber=None):
@@ -145,21 +122,17 @@ def image_formation(es_cam, e_inc_cam):
     image = np.sum(np.real(fields*np.conjugate(fields)), axis = 0)
     return image
 
-
-def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
-                                  sintheta_img, n_disc_grid, p, q, Np, Nq, NA, lamb,
-                                  nm_img, mpp, quiet=True):
+def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, 
+                                  nm_img, M, n_disc_grid, p, q, Np, Nq, NA, lamb,
+                                  mpp, quiet=True):
     """Propagate angular spectrum through microscope to get field in camera."""
 
-    # 2) Collection.
     # Compute the electric field strength factor leaving the tube lens.
-    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M,
-                        sintheta_img)
+    es_img = collection(ang_spec, s_obj_cart, s_img_cart, nm_obj, nm_img, M)
 
     if not quiet:
         verbose(map_abs(es_img), r'After Collection ($r$, $\theta$, $\phi$)')
 
-    # 3) Refocus.
     # Input the electric field strength into the debye-wolf formalism to
     # compute the scattered field at the camera plane.
     es_img = g.spherical_to_cartesian(es_img, s_img_cart)
@@ -186,7 +159,7 @@ def incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z):
     Np = pad_p + p
     Nq = pad_q + q
 
-    # 0) Propagate the Incident field to the camera plane.
+    # Propagate the incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0 / M * np.sqrt(nm_obj/nm_img), k_obj, z, (3, Np, Nq))
 
     return e_inc
@@ -230,14 +203,12 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     s_img_cart.acquire_spherical(1.)
     n_img_cart.acquire_spherical(1.)
 
-    # 1) Scattering.
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
 
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
-    # 1.5) Displacing the field.
     # Propagate the angular spectrum a distance z_p.
     disp = displacement(s_obj_cart, z, k_obj)
     ang_spec[1:, :] *= disp
@@ -245,10 +216,11 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     if not quiet:
         verbose(np.real(disp), r'Displacement Field')
 
-    # 2 and 3) Collection and Refocus
-    es_cam = propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj, M,
-                                           sintheta_img, n_disc_grid, p, q, Np, Nq, NA, lamb,
-                                           nm_img, mpp, quiet=True)
+    # Collection and refocus.
+    es_cam = propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, 
+                                           nm_obj, nm_img, M, n_disc_grid,
+                                           p, q, Np, Nq, NA, lamb, mpp, 
+                                           quiet=True)
     return es_cam
 
 
@@ -294,15 +266,13 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
     e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
 
-    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, nm_img=nm_img, NA=NA,
+    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, 
+                                         nm_img=nm_img, NA=NA,
                                          lamb=lamb, mpp=mpp, M=M,
                                          quiet=quiet)
 
-    # 4) Image formation.
-    # Combine the electric fields in the image plane to form an image.
-    image = image_formation(es_cam, e_inc)
+    return image_formation(es_cam, e_inc)
 
-    return image
 
 def test_discretize():
     NA = 1.45
