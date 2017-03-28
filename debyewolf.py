@@ -108,7 +108,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
 
     # Compute the electric field at plane 3.
     # Eq. 139 of reference.
-    es_cam  = (-1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
+    es_cam  = (-1.j*NA**2/(M**2*lamb*nm_img))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
@@ -275,11 +275,11 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
 def test_image(z=10.0, quiet=False):
     from spheredhm import spheredhm
+    import azimedian as azi
 
     # Necessary parameters.
     a_p = 0.5
     n_p = 1.5
-
     NA = 1.45
     lamb = 0.447
     f = 20.*10**2
@@ -300,11 +300,19 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    diff = M**2*nm_img/nm_obj*cam_image - image
+    cam_image *= M**2*nm_img/nm_obj
+    diff = cam_image - image
     print("Maximum difference between two images: {}".format(np.max(diff)))
-    verbose(np.hstack([M**2*nm_img/nm_obj*cam_image, image, diff+1]), 
+    verbose(np.hstack([cam_image, image, diff+1]), 
             r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
+
+    cam_rad = azi.azimedian(cam_image)
+    img_rad = azi.azimedian(image)
+    plt.plot(cam_rad, 'r', label='Camera Plane')
+    plt.plot(img_rad, 'black', label='Image Plane')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
