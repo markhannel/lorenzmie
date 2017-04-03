@@ -65,8 +65,8 @@ def test_propagate_ang_spec_microscope():
     '''
     # Necessary physical parameters.
     z = 200. # [pix]
-    a_p = 1.5 # [um]
-    n_p = 1.65 # [arb] 
+    a_p = 0.5 # [um]
+    n_p = 1.59 # [arb] 
     nm_obj = 1.339 # [arb]
     nm_img = 1.339 # [arb]
     lamb = 0.447 # [um]
@@ -80,7 +80,7 @@ def test_propagate_ang_spec_microscope():
                                             quiet=True)
     
     # Image formation.
-    e_inc = dw.incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
+    e_inc = dw.incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)*-1
 
     cam_image = dw.image_formation(es_cam, e_inc)
 
