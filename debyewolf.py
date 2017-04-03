@@ -265,13 +265,12 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, 
                                          nm_img=nm_img, NA=NA,
                                          lamb=lamb, mpp=mpp, M=M,
-                                         quiet=quiet)
+                                         quiet=quiet)*-1
 
     return image_formation(es_cam, e_inc)
 
 def test_image(z=10.0, quiet=False):
     from spheredhm import spheredhm
-    import azimedian as azi
 
     # Necessary parameters.
     a_p = 0.5
@@ -281,7 +280,7 @@ def test_image(z=10.0, quiet=False):
     dim = [201,201] # FIXME: Does nothing.
     nm_obj = 1.339
     nm_img = 1.339
-    M = 100
+    M = 1
     mpp = 0.135
     
     # Produce image with Debye-Wolf Formalism.
@@ -312,10 +311,6 @@ def test_image(z=10.0, quiet=False):
     plt.plot(focal_rad[:end], 'black', label = 'Focal Plane')
     plt.xlabel('Radial distance [pix]')
     plt.ylabel('Normalized Intensity [arb]')
-    cam_rad = azi.azimedian(cam_image)
-    img_rad = azi.azimedian(image)
-    plt.plot(cam_rad, 'r', label='Camera Plane')
-    plt.plot(img_rad, 'black', label='Image Plane')
     plt.legend()
     plt.show()
 
