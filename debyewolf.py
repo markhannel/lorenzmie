@@ -3,6 +3,7 @@ from sphericalfield import sphericalfield
 from sphere_coefficients import sphere_coefficients
 import matplotlib.pyplot as plt
 import geometry as g
+import azimedian as azi
 
 
 def map_abs(data):
@@ -30,12 +31,13 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
     # Suppose the largest scatterer we consider is 20 lambda. Then
     # P should be larger than 40*NA.
-    diam = 400 # wavelengths
-    p, q = int(diam*NA), int(diam*NA)
+    diam = 200 # wavelengths
+
+    p, q = int(2*diam*NA), int(2*diam*NA) # FIXME (MDH): should you add nm_obj?
 
     # Pad with zeros to help dealias and to set del_x to mpp.
-    pad_p = int((lamb - mpp*2*NA)/(mpp*2*NA)*p)
-    pad_q = int((lamb - mpp*2*NA)/(mpp*2*NA)*q)
+    pad_p = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*p), 0])
+    pad_q = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*q), 0])
 
     return pad_p, pad_q, p, q
 
@@ -108,7 +110,7 @@ def refocus(es_img, s_img, n_disc_grid, p, q, Np, Nq, NA, M, lamb, nm_img,
 
     # Compute the electric field at plane 3.
     # Eq. 139 of reference.
-    es_cam  = (-1.j*NA**2*nm_img/(M**2*lamb))*(4./(p*q))*es_m_n
+    es_cam  = (-1.j*NA**2/(M**2*lamb*nm_img))*(4./(p*q))*es_m_n
 
     # Accounting for aliasing.
     mm, nn = n_disc_grid.xx, n_disc_grid.yy
@@ -173,7 +175,6 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
     r_max = 1000.  # [pix]
-    sintheta_img = NA / (M * nm_img)
 
     # Devise a discretization plan.
     pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
@@ -195,13 +196,12 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     s_img_cart = g.CartesianCoordinates(p, q, origin, img_scale)
     s_obj_cart = g.CartesianCoordinates(p, q, origin, obj_scale)
     n_disc_grid = g.CartesianCoordinates(Np, Nq, origin=[.5*(Np-1), .5*(Nq-1.)])
-    n_img_cart  = g.CartesianCoordinates(Np, Nq, [.5*(Np-1.), .5*(Nq-1.)], 
-                                         img_scale)
+    #n_disc_grid = g.CartesianCoordinates(Np, Nq, origin=[0, 0])
+    
 
     # Spherical Geometries.
     s_obj_cart.acquire_spherical(1.)
     s_img_cart.acquire_spherical(1.)
-    n_img_cart.acquire_spherical(1.)
 
     # Compute the angular spectrum incident on entrance pupil of the objective.
     ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
@@ -225,7 +225,7 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
 
 def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, 
-                       lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201], 
+                       lamb=0.447, mpp=0.135, M=100, dim=[201,201], 
                        quiet=True):
     '''
     Returns an image in the camera plane due to a spherical scatterer with 
@@ -249,10 +249,6 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Default: 0.135.
         M:     [unitless] Magnification of the optical train.
 `              Default: 100
-        f:     [um]: focal length of the objective. Sets the distance between 
-               the entrance
-               pupil and the focal plane.
-               Default: 20E5 um.
         dim:   [nx, ny]: (will) set the size of the resulting image.
                Default: [201,201]
 
@@ -280,24 +276,23 @@ def test_image(z=10.0, quiet=False):
     a_p = 0.5
     n_p = 1.5
 
-    NA = 1.45
+    NA = 1.339
     lamb = 0.447
-    f = 20.*10**2
     dim = [201,201] # FIXME: Does nothing.
     nm_obj = 1.339
-    nm_img = 1.0
+    nm_img = 1.339
     M = 100
     mpp = 0.135
     
     # Produce image with Debye-Wolf Formalism.
     cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj=nm_obj, 
                                    nm_img=nm_img,  NA=NA, lamb=lamb, 
-                                   mpp=mpp, M=M, f=f, dim=dim, 
+                                   mpp=mpp, M=M, dim=dim, 
                                    quiet=quiet)
 
     # Produce image in the focal plane.
     dim = cam_image.shape
-    image = spheredhm([0,0, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+    image = spheredhm([-0.5,-0.5, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
     diff = M**2*nm_img/nm_obj*cam_image - image
@@ -305,6 +300,19 @@ def test_image(z=10.0, quiet=False):
     verbose(np.hstack([M**2*nm_img/nm_obj*cam_image, image, diff+1]), 
             r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
+
+    # Plot the radii.
+    cam_rad = azi.azimedian(M**2*nm_img/nm_obj*cam_image)
+    focal_rad = azi.azimedian(image) 
+    # FIXME (MDH): center is not correct...
+
+    end = 150
+    plt.plot(cam_rad[:end], 'r', label = 'Camera Plane')
+    plt.plot(focal_rad[:end], 'black', label = 'Focal Plane')
+    plt.xlabel('Radial distance [pix]')
+    plt.ylabel('Normalized Intensity [arb]')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
