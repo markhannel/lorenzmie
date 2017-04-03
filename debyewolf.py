@@ -271,11 +271,11 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
 
 def test_image(z=10.0, quiet=False):
     from spheredhm import spheredhm
+    import azimedian as azi
 
     # Necessary parameters.
     a_p = 0.5
     n_p = 1.5
-
     NA = 1.339
     lamb = 0.447
     dim = [201,201] # FIXME: Does nothing.
@@ -295,9 +295,10 @@ def test_image(z=10.0, quiet=False):
     image = spheredhm([-0.5,-0.5, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
-    diff = M**2*nm_img/nm_obj*cam_image - image
+    cam_image *= M**2*nm_img/nm_obj
+    diff = cam_image - image
     print("Maximum difference between two images: {}".format(np.max(diff)))
-    verbose(np.hstack([M**2*nm_img/nm_obj*cam_image, image, diff+1]), 
+    verbose(np.hstack([cam_image, image, diff+1]), 
             r'Camera Plane Image, Focal Plane Image and their Difference.', 
             gray=True)
 
@@ -311,6 +312,10 @@ def test_image(z=10.0, quiet=False):
     plt.plot(focal_rad[:end], 'black', label = 'Focal Plane')
     plt.xlabel('Radial distance [pix]')
     plt.ylabel('Normalized Intensity [arb]')
+    cam_rad = azi.azimedian(cam_image)
+    img_rad = azi.azimedian(image)
+    plt.plot(cam_rad, 'r', label='Camera Plane')
+    plt.plot(img_rad, 'black', label='Image Plane')
     plt.legend()
     plt.show()
 
