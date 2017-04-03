@@ -143,10 +143,6 @@ def fitspheredhm(a,                     # image
        parinfo[8]['limited'][:] = 1
        parinfo[8]['limits'] = [0.0, 5.0]
 
-    # errors from fit
-    perror = zeros(nparams)
-
-
     x = tile(arange(nx,dtype = float),npts/nx)  # coordinates of pixels
     y = repeat(arange(ny,dtype = float),npts/ny)
     aa = array(a,float).flatten()
