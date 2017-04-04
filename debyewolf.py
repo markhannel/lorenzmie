@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import geometry as g
 import azimedian as azi
 
+def round_to_even(num):
+    return int(np.ceil(num/2.)*2)
 
 def map_abs(data):
     return np.hstack(map(np.abs, data[:]))
@@ -39,7 +41,10 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
     pad_p = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*p), 0])
     pad_q = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*q), 0])
 
-    return pad_p, pad_q, p, q
+    Np = p + pad_p
+    Nq = q + pad_q
+
+    return Np, Nq, p, q
 
 def propagate_plane_wave(amplitude, k, path_len, shape):
     '''Propagates a plane with wavenumber k through a distance path_len. 
@@ -49,13 +54,13 @@ def propagate_plane_wave(amplitude, k, path_len, shape):
     e_inc[0, :, :] += amplitude*np.exp(1.j * k * path_len)
     return e_inc
 
-def scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r, mpp):
+def scatter(s_obj_cart, a_p, n_p, nm, lamb, r, mpp):
     '''Compute the angular spectrum arriving at the entrance pupil.'''
     
     p, q = s_obj_cart.shape
 
-    lamb_m = lamb/np.real(nm_obj)/mpp
-    ab = sphere_coefficients(a_p, n_p, nm_obj, lamb)
+    lamb_m = lamb/np.real(nm)/mpp
+    ab = sphere_coefficients(a_p, n_p, nm, lamb)
     sx = s_obj_cart.xx.ravel()
     sy = s_obj_cart.yy.ravel()
     rho_sq = sx**2 + sy**2
@@ -150,23 +155,20 @@ def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj,
 
     return es_cam
 
-def incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z):
+def incident_field_camera_plane(nm, nm_obj, nm_img, lamb, mpp, NA, M, z):
     """Calculate the incident field in the camera plane."""
     # Necessary constants.
-    #k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
-    k_obj = 2*np.pi*nm_obj*mpp/lamb # [pix**-1]
+    k_med = 2*np.pi*nm*mpp/lamb # [pix**-1]
 
     # Devise a discretization plan.
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    Np = pad_p + p
-    Nq = pad_q + q
+    Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
 
     # Propagate the incident field to the camera plane.
-    e_inc = propagate_plane_wave(-1.0 / M * np.sqrt(nm_obj/nm_img), k_obj, z, (3, Np, Nq))
+    e_inc = propagate_plane_wave(-1.0 / M * np.sqrt(nm_obj/nm_img), k_med, z, (3, Np, Nq))
 
     return e_inc
 
-def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
+def particle_field_camera_plane(z, a_p, n_p, nm, nm_obj=1.339, nm_img=1.0, NA=1.45,
                        lamb=0.447, mpp=0.135, M=100, f=2.E5, dim=[201,201],
                        quiet=True):
     """Calculate the field of a scattering particle in the camera plane."""
@@ -177,9 +179,7 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     r_max = 1000.  # [pix]
 
     # Devise a discretization plan.
-    pad_p, pad_q, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    Np = pad_p + p
-    Nq = pad_q + q
+    Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
 
     # Compute the three geometries, s_img, s_obj, n_img
     # Origins for the coordinate systems.
@@ -204,7 +204,7 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     s_img_cart.acquire_spherical(1.)
 
     # Compute the angular spectrum incident on entrance pupil of the objective.
-    ang_spec = scatter(s_obj_cart, a_p, n_p, nm_obj, lamb, r_max, mpp)
+    ang_spec = scatter(s_obj_cart, a_p, n_p, nm, lamb, r_max, mpp)
 
     if not quiet:
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
@@ -224,8 +224,8 @@ def particle_field_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     return es_cam
 
 
-def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45, 
-                       lamb=0.447, mpp=0.135, M=100, dim=[201,201], 
+def image_camera_plane(z, a_p, n_p, nm, nm_obj=1.5, nm_img=1.0, NA=1.45, 
+                       lamb=0.447, mpp=0.135, M=100, dim=None, 
                        quiet=True):
     '''
     Returns an image in the camera plane due to a spherical scatterer with 
@@ -234,11 +234,14 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
     Args:
         z:     [um] scatterer's distance from the focal plane.
         a_p:   [um] sets the radius of the spherical scatterer.
-        n_p:   [R.I.U.] sets the refractive index of the scatterer.
-        nm_obj:[R.I.U.] sets the refractive index of medium immersing the 
-               scattered.
+        n_p:   [unitless] sets the refractive index of the scatterer.
+        nm:    sets the refractive index of the medium immersing the 
+               scatterer.
                Default: 1.339 (Water)
-        nm_img:[R.I.U.] sets the refractive index of the medium immersing the 
+        nm_obj:[unitless] sets the refractive index of the medium immersing the
+               objective.
+               Default: 1.5 (Immersion Oil)
+        nm_img:[unitless] sets the refractive index of the medium immersing the 
                camera.
                Default: 1.00 (Air)
         NA:    [unitless] The numerical aperture of the optical train.
@@ -249,8 +252,8 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Default: 0.135.
         M:     [unitless] Magnification of the optical train.
 `              Default: 100
-        dim:   [nx, ny]: (will) set the size of the resulting image.
-               Default: [201,201]
+        dim:   [nx, ny]: crop the resulting image to size [nx, ny].
+               Default: None. No croppping done.
 
     Return:
         image: [?, ?] - Currently dim is not implemented. The resulting image 
@@ -260,38 +263,46 @@ def image_camera_plane(z, a_p, n_p,  nm_obj=1.339, nm_img=1.0, NA=1.45,
                Applied Optics, 38(34), 7085.
     '''
 
-    e_inc = incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)
+    e_inc = incident_field_camera_plane(nm, nm_obj, nm_img, lamb, mpp, NA, M, z)
 
-    es_cam = particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, 
+    es_cam = particle_field_camera_plane(z, a_p, n_p, nm, nm_obj=nm_obj, 
                                          nm_img=nm_img, NA=NA,
                                          lamb=lamb, mpp=mpp, M=M,
                                          quiet=quiet)*-1
 
-    return image_formation(es_cam, e_inc)
+    image = image_formation(es_cam, e_inc)
+
+    if dim is not None:
+        xc, yc = map(lambda x:x/2, image.shape)
+        dim = map(lambda x:x/2, dim)
+        image = image[xc-dim[0]:xc+dim[0], yc-dim[1]:yc+dim[1]]
+
+    return image
 
 def test_image(z=10.0, quiet=False):
     from spheredhm import spheredhm
 
     # Necessary parameters.
     a_p = 0.5
-    n_p = 1.5
-    NA = 1.339
+    n_p = 1.59
+    nm = 1.339
+    NA = 1.45
     lamb = 0.447
-    dim = [201,201] # FIXME: Does nothing.
+    dim = [200,200] # FIXME: Does nothing.
     nm_obj = 1.339
     nm_img = 1.339
-    M = 1
-    mpp = 0.135
+    M = 100
+    mpp = 0.1350981
     
     # Produce image with Debye-Wolf Formalism.
-    cam_image = image_camera_plane(z/mpp, a_p, n_p,  nm_obj=nm_obj, 
+    cam_image = image_camera_plane(z/mpp, a_p, n_p, nm, nm_obj=nm_obj, 
                                    nm_img=nm_img,  NA=NA, lamb=lamb, 
                                    mpp=mpp, M=M, dim=dim, 
                                    quiet=quiet)
 
     # Produce image in the focal plane.
     dim = cam_image.shape
-    image = spheredhm([-0.5,-0.5, z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
+    image = spheredhm([-0.,-0., z/mpp], a_p, n_p, nm_obj, dim, mpp, lamb)
 
     # Visually compare the two.
     cam_image *= M**2*nm_img/nm_obj
@@ -302,7 +313,7 @@ def test_image(z=10.0, quiet=False):
             gray=True)
 
     # Plot the radii.
-    cam_rad = azi.azimedian(M**2*nm_img/nm_obj*cam_image)
+    cam_rad = azi.azimedian(cam_image)
     focal_rad = azi.azimedian(image) 
     # FIXME (MDH): center is not correct...
 
