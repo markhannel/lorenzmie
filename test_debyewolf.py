@@ -29,9 +29,9 @@ def test_discretize_plan():
     lamb = 0.447
     nm_img = 1.0
     mpp = 0.135
-    pad_p, pad_q, p, q = dw.discretize_plan(NA, M, lamb, nm_img, mpp)
+    Np, Nq, p, q = dw.discretize_plan(NA, M, lamb, nm_img, mpp)
     
-    del_x = lamb*p*M/(2*NA*(pad_p+p))
+    del_x = lamb*p*M/(2*NA*(Np))
     assert np.round(del_x, decimals=1) == mpp*M
 
 def test_collection():
@@ -64,38 +64,38 @@ def test_propagate_ang_spec_microscope():
     Test that refocus produces the same image in the camera plane 
     '''
     # Necessary physical parameters.
-    z = 200. # [pix]
+    z = 100. # [pix]
     a_p = 0.5 # [um]
     n_p = 1.59 # [arb] 
+    nm = 1.339 # [arb]
     nm_obj = 1.339 # [arb]
     nm_img = 1.339 # [arb]
     lamb = 0.447 # [um]
     mpp = 0.1350981 # [um/pix]
-    NA = 1.339
+    NA = 1.45
     M = 1. # [arb]
-
-    es_cam = dw.particle_field_camera_plane(z, a_p, n_p, nm_obj=nm_obj, 
-                                            nm_img=nm_img, NA=NA,
-                                            lamb=lamb, mpp=mpp, M=M,
-                                            quiet=True)
     
     # Image formation.
-    e_inc = dw.incident_field_camera_plane(nm_obj, nm_img, lamb, mpp, NA, M, z)*-1
-
-    cam_image = dw.image_formation(es_cam, e_inc)
+    cam_image = dw.image_camera_plane(z, a_p, n_p, nm, nm_obj=nm_obj, nm_img=nm_img,
+                                      NA=NA, lamb=lamb, mpp=mpp, M=M, quiet=True)
+    cam_image *= M**2*nm_img/nm_obj
 
     # Produce image in focal plane with spheredhm.
     dim = cam_image.shape
     focal_image = sph.spheredhm([-0.5, -0.5, z], a_p, n_p, nm_obj, dim, mpp, lamb)
     
     # PYTEST
-    #npt.assert_array_almost_equal(focal_image, cam_image, decimal = 2)
+    npt.assert_array_almost_equal(focal_image, cam_image, decimal = 2)
     
+    '''
     # Temporary debugging information.
     # Numerical information.
-    print('Mean and max value of camera image: {} {}'.format(np.mean(cam_image), np.max(cam_image)))
+    print('Mean and max value of camera image:      {} {}'.format(np.mean(cam_image), np.max(cam_image)))
 
     print('Mean and max value of focal plane image: {} {}'.format(np.mean(focal_image), np.max(focal_image)))   
+    print('Max value of normalized camera image:      {}'.format(np.max(cam_image)/np.mean(cam_image)))
+
+    print('Max value of normalized focal plane image: {}'.format(np.max(focal_image)/np.mean(focal_image)))   
     
 
     # 2D images
@@ -114,6 +114,7 @@ def test_propagate_ang_spec_microscope():
     plt.ylabel('Normalized Intensity [arb]')
     plt.legend()
     plt.show()
+    '''
 
 if __name__ == '__main__':
     test_propagate_ang_spec_microscope()
