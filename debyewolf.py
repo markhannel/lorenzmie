@@ -37,14 +37,17 @@ def discretize_plan(NA, M, lamb, nm_img, mpp):
 
     p, q = int(2*diam*NA), int(2*diam*NA) # FIXME (MDH): should you add nm_obj?
 
-    # Pad with zeros to help dealias and to set del_x to mpp.
+    # Pad with zeros to help dealias and to approximate mpp_r to mpp.
     pad_p = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*p), 0])
     pad_q = max([int((lamb - mpp*2*NA)/(mpp*2*NA)*q), 0])
 
     Np = p + pad_p
     Nq = q + pad_q
 
-    return Np, Nq, p, q
+    # Compute the real mpp.
+    mpp_r = lamb*p/(2*NA*Np) # FIXME (MDH): Will this result in mpp_x, mpp_y?
+
+    return mpp_r, Np, Nq, p, q
 
 def propagate_plane_wave(amplitude, k, path_len, shape):
     '''Propagates a plane with wavenumber k through a distance path_len. 
@@ -157,11 +160,13 @@ def propagate_ang_spec_microscope(ang_spec, s_obj_cart, s_img_cart, nm_obj,
 
 def incident_field_camera_plane(nm, nm_obj, nm_img, lamb, mpp, NA, M, z):
     """Calculate the incident field in the camera plane."""
+    
+    # Devise a discretization plan.
+    mpp_r, Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    mpp = mpp_r
+
     # Necessary constants.
     k_med = 2*np.pi*nm*mpp/lamb # [pix**-1]
-
-    # Devise a discretization plan.
-    Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
 
     # Propagate the incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0 / M * np.sqrt(nm_obj/nm_img), k_med, z, (3, Np, Nq))
@@ -173,13 +178,16 @@ def particle_field_camera_plane(z, a_p, n_p, nm, nm_obj=1.339, nm_img=1.0, NA=1.
                        quiet=True):
     """Calculate the field of a scattering particle in the camera plane."""
 
+
+    # Devise a discretization plan.
+    mpp_r, Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    mpp = mpp_r
+    print mpp_r, mpp
+
     # Necessary constants.
     # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
     k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
     r_max = 1000.  # [pix]
-
-    # Devise a discretization plan.
-    Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
 
     # Compute the three geometries, s_img, s_obj, n_img
     # Origins for the coordinate systems.
@@ -286,13 +294,13 @@ def test_image(z=10.0, quiet=False):
     a_p = 0.5
     n_p = 1.59
     nm = 1.339
-    NA = 1.45
+    NA = 1.339
     lamb = 0.447
-    dim = [200,200] # FIXME: Does nothing.
+    dim = [400,400] # FIXME: Does nothing.
     nm_obj = 1.339
     nm_img = 1.339
-    M = 100
-    mpp = 0.1350981
+    M = 1
+    mpp = 0.135
     
     # Produce image with Debye-Wolf Formalism.
     cam_image = image_camera_plane(z/mpp, a_p, n_p, nm, nm_obj=nm_obj, 
