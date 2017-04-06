@@ -29,10 +29,11 @@ def test_discretize_plan():
     lamb = 0.447
     nm_img = 1.0
     mpp = 0.135
-    Np, Nq, p, q = dw.discretize_plan(NA, M, lamb, nm_img, mpp)
+    mpp_r, Np, Nq, p, q = dw.discretize_plan(NA, M, lamb, nm_img, mpp)
     
-    del_x = lamb*p*M/(2*NA*(Np))
-    assert np.round(del_x, decimals=1) == mpp*M
+    del_x = lamb*p/(2*NA*(Np))
+    print del_x
+    assert np.round(del_x, decimals=4) == mpp
 
 def test_collection():
     shape = (3, 100, 100)
