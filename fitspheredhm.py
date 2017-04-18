@@ -1,4 +1,5 @@
 from numpy import *
+import numpy as np
 import mpfit as mp
 from spherefield import spherefield
 
@@ -8,9 +9,9 @@ class spheredhm_objf:
       # p[1] : yp         y position of sphere center
       # p[2] : zp         z position of sphere center
       # p[3] : ap         radius of sphere
-      # p[4] : np         real part of sphere's refractive index
+      # p[4] : n_p         real part of sphere's refractive index
       # p[5] : alpha  
-      # p[6] : nm         real part of medium's refractive index
+      # p[6] : n_m         real part of medium's refractive index
       #
       # Optional:
       # p[7] : kp         imaginary part of sphere's refractive index
@@ -25,10 +26,10 @@ class spheredhm_objf:
       self.rp      = p[0:2] 
       self.p       = p[3] 
       self.alpha   = p[5]
-      self.np      = p[4]
-      self.nm      = p[6]
-      if self.nparams > 8: self.np += nmp.complex(0,p[7])
-      if self.nparams > 9: self.nm += nm.complex(0,p[8])
+      self.n_p      = p[4]
+      self.n_m      = p[6]
+      if self.nparams > 8: self.n_p += np.complex(0,p[7])
+      if self.nparams > 9: self.n_m += np.complex(0,p[8])
 #   return obj.hologram
 
 
@@ -37,9 +38,9 @@ def spheredhm_f(p, x,y,z,lamb,mpp,err,fjac = None,**kwargs):
    # p[1] : yp         y position of sphere center
    # p[2] : zp         z position of sphere center
    # p[3] : ap         radius of sphere
-   # p[4] : np         real part of sphere's refractive index
+   # p[4] : n_p         real part of sphere's refractive index
    # p[5] : alpha  
-   # p[6] : nm         real part of medium's refractive index
+   # p[6] : n_m         real part of medium's refractive index
    #
    # Optional:
    # p[7] : kp         imaginary part of sphere's refractive index
@@ -49,30 +50,29 @@ def spheredhm_f(p, x,y,z,lamb,mpp,err,fjac = None,**kwargs):
    yy = y - p[1]
    zp = p[2]
    ap = p[3]
-   np = p[4]
+   n_p = p[4]
    alpha = p[5]
-   nm = p[6]
+   n_m = p[6]
    if len(p) >= 8 : #$
-      np = complex(np, p[7])      # sphere's complex refractive index
+      n_p = complex(n_p, p[7])      # sphere's complex refractive index
    if len(p) >= 9 : #$ 
-      nm = complex(nm, p[8])      # medium's complex refractive index
+      n_m = complex(n_m, p[8])      # medium's complex refractive index
 
 
-   field = spherefield(xx, yy, zp, ap, np, nm = nm, lamb = lamb, mpp = mpp, 
-                       cartesian = True)
+   field = spherefield(xx, yy, zp, ap, n_p, n_m = n_m, lamb = lamb, 
+                       mpp = mpp, cartesian = True)
 
    if alpha:
       field *= alpha
 
    # interference between light scattered by the particle
    # and a plane wave polarized along x and propagating along z
-   lamb_m = lamb / real(nm) / mpp
+   lamb_m = lamb / real(n_m) / mpp
    k = 2.0 * pi / lamb_m  
+   field *= np.exp(np.complex(0.,-k*zp))
+   field[0,:] += 1.0
+   dhm = np.sum(np.real(field*np.conj(field)), axis = 0)
 
-   dhm = 1.0 + \
-       2.0 *(field[:, 0] * exp(complex(0, -k*zp))).real + \
-       sum((field * conj(field)), axis=1)
-   
    #w =  where(finite(dhm, /nan), nbad)
    #if nbad != 0 : stop
    status = 0
@@ -127,7 +127,7 @@ def fitspheredhm(a,                     # image
     # alpha: Illumination at particle
     parinfo[5]['limited'][0] = 1
     parinfo[5]['limits'][0] = 0.       # cannot be negative
-    # nm: Refractive index of medium: No restrictions
+    # n_m: Refractive index of medium: No restrictions
     # Flags to prevent parameters from being adjusted
     parinfo[2]['fixed'] = fixzp
     parinfo[3]['fixed'] = fixap
@@ -160,3 +160,22 @@ def fitspheredhm(a,                     # image
     p = mp.mpfit(spheredhm_f, p0, functkw = argv, parinfo = parinfo, ftol = precision)
 
     return transpose(p.params)
+
+if __name__ == '__main__':
+   import spheredhm as sph
+   
+   # Make an image
+   x = 0
+   y = 0
+   z = 200.
+   a_p = 0.5
+   n_p = 1.5
+   n_m = 1.339
+   alpha = 1.0
+   dim = [201,201]
+   
+   image = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim)
+   p0 = [x, y, z, a_p, n_p, alpha, n_m]
+
+   result = fitspheredhm(image, p0)
+   print result

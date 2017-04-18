@@ -39,12 +39,12 @@ def sphericalfield(x, y, z, ab, lamb, cartesian=False, str_factor=False,
             print 'x, y and ab must be numpy arrays'
             return None
 
+    z = np.array(z) # In case it is a float or integer.
     type_z = type(z)
     if type_z != np.ndarray and type_z != int and type_z != float:
         print 'z must be a float, int or numpy array.'
         return None
 
-    z = np.array(z) # In case it is a float or integer.
     signZ = np.sign(z)
 
     # Check the inputs are the right size

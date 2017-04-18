@@ -39,7 +39,6 @@ def spherefield(x, y, z, a_p, n_p, n_m = complex(1.3326, 1.5e-8),
         ab =  ab[w,:]
  
     lamb_m = lamb/np.real(n_m)/mpp # medium wavelength [pixel]
-
     field = sphericalfield(x, y, z, ab, lamb_m, cartesian=cartesian, 
                            str_factor = False)
 
