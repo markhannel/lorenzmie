@@ -94,7 +94,8 @@ def example():
     image = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim, mpp, lamb)
     
     # Add noise.
-    image += np.random.random(image.shape)*0.1
+    std = 0.03
+    image += np.random.normal(size=image.shape)*std
 
     init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p, 'n_m':n_m,
                    'mpp':mpp, 'lamb':lamb}
