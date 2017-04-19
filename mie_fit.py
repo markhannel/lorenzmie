@@ -69,13 +69,20 @@ class Mie_Fitter(object):
 
     def fit(self, image, dim):
         """Fit a image of a hologram with the current attribute 
-        parameters."""
+        parameters.
+
+        Example:
+        >>> p = {'x':0, 'y':0, 'z':100, 'a_p':0.5, 'n_p':1.5, 'n_m':1.337, 
+        ...      'mpp':0.135, 'lamb':0.447}
+        >>> mie_fit = Mie_Fitter(p)
+        >>> mit_fit.result(image, dim)
+        """
         minner = Minimizer(mie_loss, self.p, fcn_args=(image, dim))
         self.result = minner.minimize()
         return self.result
 
         
-def main():
+def example():
     # create data to be fitted
     x,y,z = 0., 0., 100.
     a_p = 0.5
@@ -119,7 +126,7 @@ def main():
                 square=True, cbar_kws={}, ax=ax)
     ax.set_xticklabels(['x', 'y', 'z', r'a$_p$', r'n$_p$'])
     ax.set_yticklabels([r'n$_p$', r'a$_p$', 'z', 'y', 'x'])
-    #plt.savefig('covariance_PuRd.jpg')
     plt.show()
+
 if __name__ == '__main__':
-    main()
+    example()
