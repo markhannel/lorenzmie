@@ -1,1 +1,1 @@
-__all__ = ['spheredhm', 'rayleighsommerfeld', 'sphere_coefficients', 'spherefield', 'sphericalfield']
+__all__ = ['spheredhm', 'rayleighsommerfeld', 'sphere_coefficients', 'spherefield', 'sphericalfield', 'mie_fit']
