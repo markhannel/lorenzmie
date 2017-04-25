@@ -67,7 +67,7 @@ class Mie_Fitter(object):
         """Fix parameter 'name' to not vary during fitting"""
         self.p[name].vary = choice
 
-    def fit(self, image, dim):
+    def fit(self, image):
         """Fit a image of a hologram with the current attribute 
         parameters.
 
@@ -75,8 +75,9 @@ class Mie_Fitter(object):
         >>> p = {'x':0, 'y':0, 'z':100, 'a_p':0.5, 'n_p':1.5, 'n_m':1.337, 
         ...      'mpp':0.135, 'lamb':0.447}
         >>> mie_fit = Mie_Fitter(p)
-        >>> mit_fit.result(image, dim)
+        >>> mit_fit.result(image)
         """
+        dim = image.shape
         minner = Minimizer(mie_loss, self.p, fcn_args=(image, dim))
         self.result = minner.minimize()
         return self.result
