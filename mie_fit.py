@@ -1,4 +1,4 @@
-from lmfit import minimize, Minimizer, Parameters, Parameter, report_fit
+from lmfit import Minimizer, Parameters, report_fit
 import numpy as np
 import spheredhm as sph
 import matplotlib.pyplot as plt
