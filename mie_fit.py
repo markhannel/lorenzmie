@@ -101,7 +101,7 @@ def example():
     init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p, 'n_m':n_m,
                    'mpp':mpp, 'lamb':lamb}
     mie_fit = Mie_Fitter(init_params)
-    result = mie_fit.fit(image, dim)
+    result = mie_fit.fit(image)
 
     # Calculate final result.
     residual = result.residual.reshape(*dim)
