@@ -163,10 +163,11 @@ def incident_field_camera_plane(nm, nm_obj, nm_img, lamb, mpp, NA, M, z):
     
     # Devise a discretization plan.
     mpp_r, Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
-    mpp = mpp_r
 
     # Necessary constants.
-    k_med = 2*np.pi*nm*mpp/lamb # [pix**-1]
+    k_med = 2*np.pi*nm*mpp_r/lamb # [pix**-1]
+
+    z *= mpp/mpp_r
 
     # Propagate the incident field to the camera plane.
     e_inc = propagate_plane_wave(-1.0 / M * np.sqrt(nm_obj/nm_img), k_med, z, (3, Np, Nq))
@@ -178,15 +179,15 @@ def particle_field_camera_plane(z, a_p, n_p, nm, nm_obj=1.339, nm_img=1.0, NA=1.
                        quiet=True):
     """Calculate the field of a scattering particle in the camera plane."""
 
-
     # Devise a discretization plan.
     mpp_r, Np, Nq, p, q = discretize_plan(NA, M, lamb, nm_img, mpp)
+    z *= mpp/mpp_r # TOTAL HACK FIXME (MDH)
     mpp = mpp_r
-    print mpp_r, mpp
 
     # Necessary constants.
+    k = 2*np.pi*nm*mpp/lamb
     # k_img = 2*np.pi*nm_img/lamb*mpp # [pix**-1]
-    k_obj = 2 * np.pi * nm_obj / lamb * mpp  # [pix**-1]
+    # k_obj = 2 * np.pi * nm_obj * mpp / lamb   # [pix**-1]
     r_max = 1000.  # [pix]
 
     # Compute the three geometries, s_img, s_obj, n_img
@@ -218,7 +219,7 @@ def particle_field_camera_plane(z, a_p, n_p, nm, nm_obj=1.339, nm_img=1.0, NA=1.
         verbose(map_abs(ang_spec), r'After Scatter $(r,\theta,\phi)$')
 
     # Propagate the angular spectrum a distance z_p.
-    disp = displacement(s_obj_cart, z, k_obj)
+    disp = displacement(s_obj_cart, z, k)
     ang_spec[1:, :] *= disp
 
     if not quiet:
@@ -240,7 +241,7 @@ def image_camera_plane(z, a_p, n_p, nm, nm_obj=1.5, nm_img=1.0, NA=1.45,
     radius a_p and refractive index n_p at a height z above the focal plane. 
 
     Args:
-        z:     [um] scatterer's distance from the focal plane.
+        z:     [pix] scatterer's distance from the focal plane.
         a_p:   [um] sets the radius of the spherical scatterer.
         n_p:   [unitless] sets the refractive index of the scatterer.
         nm:    sets the refractive index of the medium immersing the 
