@@ -1,0 +1,58 @@
+from lmfit import Minimizer, Parameters, report_fit
+import numpy as np
+import spheredhm as sph
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib as mpl
+import os
+import mie_fit as mf
+from scipy.misc import imread
+from mie_fit import Mie_Fitter
+
+def example():
+    # create data to be fitted
+    x,y,z = 0., 0., 100.
+    a_p = 0.1
+    n_p = 1.55
+    n_m = 1.33
+    lamb = 0.532
+    mpp = 0.046
+
+    image = imread(os.path.expanduser('~/Google Drive/Microscope/Zechen/170629/image1.tif'))
+    background = imread(os.path.expanduser('~/Google Drive/Microscope/Zechen/170629/background1.tif'))
+    
+    normalized = image / background
+    plt.imshow(normalized)
+    plt.show()
+        
+    init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p, 'n_m':n_m,
+                   'mpp':mpp, 'lamb':lamb}
+    mie_fit = Mie_Fitter(init_params)
+    result = mie_fit.fit(normalized)
+    
+
+    # Write error report.
+    report_fit(result)
+
+    ## Make plots.
+    # Plot images.
+    sns.set(style='white', font_scale=1.4)
+    plt.imshow(np.hstack([image, result]))
+    plt.title('Image, Fit')
+    plt.gray()
+    plt.show()
+
+    # Plot Covariance.
+    f, ax = plt.subplots()
+    #cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    sns.set(font_scale=1.5)
+    plt.title('Log Covariance Matrix')
+    sns.heatmap(np.log(result.covar), cmap='PuBu',
+                square=True, cbar_kws={}, ax=ax)
+    ax.set_xticklabels(['x', 'y', 'z', r'a$_p$', r'n$_p$'])
+    ax.set_yticklabels([r'n$_p$', r'a$_p$', 'z', 'y', 'x'])
+    plt.show()
+
+if __name__ == '__main__':
+    example()

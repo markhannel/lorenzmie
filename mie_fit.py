@@ -93,7 +93,7 @@ def example():
     lamb = 0.447
     mpp = 0.135
     image = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim, mpp, lamb)
-    
+
     # Add noise.
     std = 0.03
     image += np.random.normal(size=image.shape)*std
@@ -106,6 +106,7 @@ def example():
     # Calculate final result.
     residual = result.residual.reshape(*dim)
     final = image + residual
+    np.savetxt('final.txt',final)
 
     # Write error report.
     report_fit(result)

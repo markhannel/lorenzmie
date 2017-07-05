@@ -1,0 +1,22 @@
+[[Fit Statistics]]
+    # function evals   = 4716
+    # data points      = 123904
+    # variables        = 5
+    chi-square         = 1939711095.841
+    reduced chi-square = 15655.583
+    Akaike info crit   = 1196742.053
+    Bayesian info crit = 1196790.690
+[[Variables]]
+    x:     -13.9892111 +/- 0.116733 (0.83%) (init= 0)
+    y:      23.6530123 +/- 0.112007 (0.47%) (init= 0)
+    z:     -26.7406697 +/- 0.099921 (0.37%) (init= 100)
+    a_p:    2.17115014 +/- 0.005301 (0.24%) (init= 1)
+    n_p:    0.44873865 +/- 0.008897 (1.98%) (init= 1.458)
+    n_m:    1 (fixed)
+    mpp:    0.046131 (fixed)
+    lamb:   0.52 (fixed)
+[[Correlations]] (unreported correlations are <  0.100)
+    C(z, a_p)                    = -0.951
+    C(z, n_p)                    =  0.296
+    C(a_p, n_p)                  = -0.102
+Traceback (most recent call last):
