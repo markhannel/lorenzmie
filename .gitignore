@@ -1,3 +1,7 @@
+former_scripts
+plot
+plots
+.ipynb_checkpoints
 *.pyc
 .idea/
 *.png
