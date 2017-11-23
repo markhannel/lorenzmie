@@ -94,7 +94,7 @@ def spherical_to_cartesian(es_cam, sph_coords):
     
     return es_cam_cart
 
-if __name__ == '__main__':
+def test():
     xy = np.ogrid[0:10,0:10]
     origin = [0.0, 0.0]
     cart = CartesianCoordinates(xy, origin, units = [1.0, 'um'])
@@ -109,4 +109,53 @@ if __name__ == '__main__':
     print y
     print cart.units
     
+def test_spherical():
     
+    # Parameters
+    nm_obj = 1.339
+    nm_img = 1.339 
+    NA = 1.45 
+    mpp = 0.135 
+    M = 1.
+
+    # Arbitrary size of image
+    p, q = 20, 20
+
+    # Compute the two geometries, s_img, s_obj, n_img
+    # Origins for the coordinate systems.
+    origin = [.5*(p-1.), .5*(q-1.)]
+    
+    # Scale factors for the coordinate systems.
+    img_factor = 2*NA/(M*nm_img)
+    obj_factor = 2*NA/nm_obj
+    img_scale = [img_factor*1./p, img_factor*1./q]
+    obj_scale = [obj_factor*1./p, obj_factor*1./q]
+
+    # Cartesian Geometries.
+    # FIXME (MDH): is it necessary to have s_obj_cart?
+    s_img_cart = CartesianCoordinates(p, q, origin, img_scale)
+    s_obj_cart = CartesianCoordinates(p, q, origin, obj_scale)
+
+    # Spherical geometries.
+    s_img_cart.acquire_spherical(1.)
+    s_obj_cart.acquire_spherical(1.)
+
+    # Plot the cartesian quantities
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ax.scatter(s_img_cart.xx.ravel(), s_img_cart.yy.ravel(), color = 'r')
+    ax.scatter(s_obj_cart.xx.ravel(), s_obj_cart.yy.ravel(), color = 'b')
+    plt.show()
+
+    # Plot the spherical quantities
+    fig, ax = plt.subplots()
+    ax.scatter(s_img_cart.costheta, s_img_cart.sintheta.ravel(), color = 'b')
+    ax.scatter(s_obj_cart.costheta, s_obj_cart.sintheta.ravel(), color = 'r')
+    plt.axes().set_aspect('equal', 'datalim')
+    plt.show()
+
+    plt.plot(s_obj_cart.costheta)
+    plt.show()
+
+if __name__ == '__main__':
+    test_spherical()

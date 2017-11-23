@@ -67,7 +67,7 @@ class Mie_Fitter(object):
         """Fix parameter 'name' to not vary during fitting"""
         self.p[name].vary = choice
 
-    def fit(self, image):
+    def fit(self, image, dim):
         """Fit a image of a hologram with the current attribute 
         parameters.
 
@@ -87,7 +87,7 @@ def example():
     # create data to be fitted
     x,y,z = 0., 0., 100.
     a_p = 0.5
-    n_p = 1.5
+    n_p = 1.6
     n_m = 1.339
     dim = [201,201]
     lamb = 0.447
@@ -95,10 +95,10 @@ def example():
     image = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim, mpp, lamb)
     
     # Add noise.
-    std = 0.03
+    std = 0.01
     image += np.random.normal(size=image.shape)*std
 
-    init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p, 'n_m':n_m,
+    init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p-.1, 'n_m':n_m,
                    'mpp':mpp, 'lamb':lamb}
     mie_fit = Mie_Fitter(init_params)
     result = mie_fit.fit(image, dim)

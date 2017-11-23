@@ -24,7 +24,7 @@ The methods provided here have been adopted, utilized and incrementally improved
 Mark Hannel - Physics PhD Student at NYU University
 
 ## Where to get it.
-[Mark Hannel's Github Repository](https://https://github.com/markhannel/lorenzmie)
+[Mark Hannel's Github Repository](https://github.com/markhannel/lorenzmie)
 
 ## Coming Soon.
 1.`svr` - Calculating holograms is computationally expensive. Instead, support vector machines can offer a less precise, yet computational cheap method for analyzing holographic images.
