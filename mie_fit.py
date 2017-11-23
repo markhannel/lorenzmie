@@ -67,7 +67,7 @@ class Mie_Fitter(object):
         """Fix parameter 'name' to not vary during fitting"""
         self.p[name].vary = choice
 
-    def fit(self, image, dim):
+    def fit(self, image):
         """Fit a image of a hologram with the current attribute 
         parameters.
 
@@ -84,28 +84,34 @@ class Mie_Fitter(object):
 
         
 def example():
-    # create data to be fitted
+    '''
+    Make a "noisy" hologram. Then fit the noisy hologram. Plot the results.
+    '''
+    ## Make Noisy Hologram.
+    # Create hologram to be fitted.
     x,y,z = 0., 0., 100.
     a_p = 0.5
-    n_p = 1.6
+    n_p = 1.5
     n_m = 1.339
     dim = [201,201]
     lamb = 0.447
     mpp = 0.135
-    image = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim, mpp, lamb)
+    hologram = sph.spheredhm([x,y,z], a_p, n_p, n_m, dim, mpp, lamb)
     
     # Add noise.
-    std = 0.01
-    image += np.random.normal(size=image.shape)*std
+    std = 0.03
+    noise = np.random.normal(size=hologram.shape)*std
+    noisy_hologram = hologram + noise
 
-    init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p-.1, 'n_m':n_m,
+    ## Fit the noisy hologram.
+    init_params = {'x':x, 'y':y, 'z':z, 'a_p':a_p, 'n_p':n_p, 'n_m':n_m,
                    'mpp':mpp, 'lamb':lamb}
     mie_fit = Mie_Fitter(init_params)
-    result = mie_fit.fit(image, dim)
+    result = mie_fit.fit(noisy_hologram)
 
-    # Calculate final result.
+    # Calculate the resulting image.
     residual = result.residual.reshape(*dim)
-    final = image + residual
+    final = hologram + residual
 
     # Write error report.
     report_fit(result)
@@ -113,7 +119,7 @@ def example():
     ## Make plots.
     # Plot images.
     sns.set(style='white', font_scale=1.4)
-    plt.imshow(np.hstack([image, final, residual+1]))
+    plt.imshow(np.hstack([hologram, final, residual+1]))
     plt.title('Image, Fit, Residual')
     plt.gray()
     plt.show()
