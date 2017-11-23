@@ -50,7 +50,7 @@ def sphere_coefficients(a_p, n_p, n_m, lamb, resolution=0):
     nlayers = a_p.ndim
 
     if n_p.ndim != nlayers:
-        print "Error Warning: a_p and n_p must have the same number of elements"
+        print("Error Warning: a_p and n_p must have the same number of elements")
 
     # arrange shells in size order
     if nlayers > 1: 
